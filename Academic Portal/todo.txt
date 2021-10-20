@@ -1,0 +1,4 @@
+-- Enforce not null on attributes
+-- Destructor trigger corresponding to each of the constructor triggers
+-- Create Roles and grant access to table, trigger(tables) and procedures for each role accordingly
+-- Check for all design principles one by one

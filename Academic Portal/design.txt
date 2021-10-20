@@ -1,0 +1,50 @@
+# Queries
+- Student Registration should have ticket generation like process?
+- What is the difference between transcript and grades?
+- Can a course have multiple slots?
+
+# TODO
+- Can stored procedure access all tables?
+
+# Assumptions
+- Our portal is only for B. Tech students
+
+# Entities
+- Department (name)
+- Batch(dept, year)
+- Course (id, l, t, p, s, c, dept)  
+- Student (id, name, email, batch)
+- Instructor (id, name, email, dept)
+- BatchAdvisor (inst_id, batch)
+- Slot (id, duration)
+- Offering (id, semester, year, batch_const, slot)
+
+# Relations
+- Prereq (from Courses to Courses)
+- BatchesConstraint (id, semester, year, batch, gpa)
+
+# Procedures
+
+## Dean Academics Office
+- generate transcripts
+- accept/reject course
+- accept/reject ticket
+- generate time table
+- view grades
+
+## Batch Advisor
+- accept/reject ticket
+- view grades
+
+## Instructor
+- add course
+- accept/reject ticket
+- create offering
+- update grades
+- view grades
+
+## Student
+- enroll/unenroll
+- generate ticket
+- view grade
+- view transcript
