@@ -41,7 +41,7 @@ create table student(
 );
 
 create table instructor(
-    id int,
+    id char(11),
     name varchar(100),
     email varchar(50),
     dept_id int,
@@ -51,7 +51,7 @@ create table instructor(
 );
 
 create table advisor(
-    inst_id int,
+    inst_id char(11),
     batch_id int,
 
     primary key (inst_id, batch_id),
@@ -69,7 +69,7 @@ create table slot(
 create table offering(
     id serial,
     course_id char(5),
-    inst_id int,
+    inst_id char(11),
     sem_offered int,
     year_offered int,
     slot_id int, -- single slot assumed
@@ -80,9 +80,10 @@ create table offering(
     foreign key (inst_id) references instructor(id)
 );
 
-create table add_status(
+create table registration_status(
     id boolean check(value=true),
     add_open boolean,
+    withdraw_open boolean;
     current_sem int, 
     current_year int,
 
@@ -108,6 +109,15 @@ create table offering_constr(
     primary key (offering_id, batch_id),
     foreign key (batch_id) references batch(id),
     foreign key (offering_id) references offering(id)
+);
+
+create table d_ticket(
+    id int not null,
+    entry_number char(11),
+    verdict boolean,
+
+    primary key (id, entry_number),
+    foreign key (entry_number) references student(entry_number)
 );
 
 -- TYPES

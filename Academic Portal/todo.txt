@@ -2,3 +2,9 @@
 -- Destructor trigger corresponding to each of the constructor triggers
 -- Create Roles and grant access to table, trigger(tables) and procedures for each role accordingly
 -- Check for all design principles one by one
+
+-- Add raise messages wherever required
+
+-- Fix withdraw method
+-- both enroll and credit should not be allowed to a student in the same course
+-- Add credit or audit type in ticket
