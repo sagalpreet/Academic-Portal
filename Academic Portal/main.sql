@@ -33,7 +33,7 @@ create table course(
 create table student(
     entry_number char(11),
     name varchar(100),
-    email char(18),
+    email char(24),
     batch_id int,
     
     primary key(entry_number),
@@ -81,9 +81,9 @@ create table offering(
 );
 
 create table registration_status(
-    id boolean check(value=true),
+    id boolean check(id=true),
     add_open boolean,
-    withdraw_open boolean;
+    withdraw_open boolean,
     current_sem int, 
     current_year int,
 
@@ -104,7 +104,7 @@ create table prereq(
 create table offering_constr(
     offering_id int,
     batch_id int,
-    min_gpa numeric(3, 2),
+    min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0),
     
     primary key (offering_id, batch_id),
     foreign key (batch_id) references batch(id),
@@ -125,6 +125,8 @@ create table d_ticket(
 create type credit_grade as enum ('F', 'E', 'D-', 'D', 'C-', 'C', 'B-', 'B', 'A-', 'A');
 create type audit_grade as enum ('NP', 'NF');
 
+-----
+insert into registration_status(id, add_open, withdraw_open, current_sem, current_year) values(true, false, false, NULL, NULL);
 
 -- PRIVILEGES
 

@@ -7,9 +7,9 @@ returns trigger
 language plpgsql
 as $$
 begin
-    execute format('create table %I (entry_number int primary key, grade credit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'credit_'||NEW.id);
-    execute format('create table %I (entry_number int primary key, grade audit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'audit_'||NEW.id);
-    execute format('create table %I (entry_number int primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'withdraw_'||NEW.id);
+    execute format('create table %I (entry_number char(11) primary key, grade credit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'credit_'||NEW.id);
+    execute format('create table %I (entry_number char(11) primary key, grade audit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'audit_'||NEW.id);
+    execute format('create table %I (entry_number char(11) primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'withdraw_'||NEW.id);
     return NEW;
 end;
 $$;
@@ -24,7 +24,7 @@ execute function add_offering_trigger_function();
 create or replace function add_s_ticket_trigger_function()
 returns trigger
 language plpgsql
-$$
+as $$
 declare
     entry_number char(11);
     inst_id char(11);
@@ -47,11 +47,11 @@ begin
     execute format('create table %I (offering_id int primary key, grade credit_grade, foreign key (offering_id) references offering(id));', 'credit_'||NEW.entry_number);
     execute format('create table %I (offering_id int primary key, grade audit_grade, foreign key (offering_id) references offering(id));', 'audit_'||NEW.entry_number);
     execute format('create table %I (offering_id int primary key, foreign key (offering_id) references offering(id));', 'withdraw_'||NEW.entry_number);
-    execute format('create table %I (id serial primary key, offering_id int);', 's_ticket_'||id);
+    execute format('create table %I (id serial primary key, offering_id int);', 's_ticket_'||NEW.entry_number);
     execute format('create trigger %I
     after insert on %I
     for each row
-    execute function add_s_ticket_trigger_function()', 'add_s_ticket_'||id, 's_ticket_'||id);
+    execute function add_s_ticket_trigger_function()', 'add_s_ticket_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
     return NEW;
 end;
 $$;
@@ -85,7 +85,7 @@ returns trigger
 language plpgsql
 as $$
 begin
-    execute format('create table %I (id int not null, entry_number char(11) not null, verdict boolean, primary key (id, entry_number), foreign key (entry_number) references student(entry_number));', 'b_ticket_'||id);
+    execute format('create table %I (id int not null, entry_number char(11) not null, verdict boolean, primary key (id, entry_number), foreign key (entry_number) references student(entry_number));', 'b_ticket_'||NEW.inst_id);
     return NEW;
 end;
 $$;

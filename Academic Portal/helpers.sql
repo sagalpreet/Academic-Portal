@@ -5,17 +5,18 @@ language plpgsql
 as $$
 declare
     table_name char(18);
+    sgpa numeric(4, 2);
 begin
     select 'credit_'||entry_number into table_name;
-    return (execute format(
-        'select sum(n)/sum(d)
+    execute format('select sum(n)/sum(d)
         from (
             select course.c * grade_to_number(t.grade), course.c
             from %I as t, offering, course
             where offering.id = t.offering_id and course.id = offering.course_id
             and (offering.sem_offered, offering.year_offered)=(%L, %L)
         ) x (n, d)'
-        , table_name, sem, year));
+        , table_name, sem, year) into sgpa;
+    return sgpa;
 end;
 $$;
 
@@ -25,9 +26,10 @@ language plpgsql
 as $$
 declare
     table_name char(18);
+    cgpa numeric(4, 2);
 begin
     select 'credit_'||entry_number into table_name;
-    return (execute format(
+    execute format(
         'select sum(n)/sum(d)
         from (
             select course.c * grade_to_number(t.grade), course.c
@@ -39,7 +41,8 @@ begin
                 (offering.year_offered=%L and offering.sem_offered<=%L)
             )
         ) x (n, d)'
-        , table_name, year, year, sem));
+        , table_name, year, year, sem) into cgpa;
+    return cpga;
 end;
 $$;
 
@@ -132,16 +135,17 @@ language plpgsql
 as $$
 declare
     table_name char(18);
+    gpa numeric(4, 2);
 begin
     select 'credit_'||entry_number into table_name;
-    return (execute format(
+    execute format(
         'select sum(n)/sum(d)
         from (
             select course.c * grade_to_number(t.grade), course.c
             from %I as t, offering, course
             where offering.id = t.offering_id and course.id = offering.course_id
         ) x (n, d)'
-        , table_name));
+        , table_name) into gpa;
 end;
 $$;
 
@@ -155,7 +159,7 @@ declare
     current_year int;
     current_sem int;
 begin
-    return (not exists (select id from offering where offering.id=offering_id and offering.sem_offered=current_sem and offering.year_offered=current_year))
+    return (not exists (select id from offering where offering.id=offering_id and offering.sem_offered=current_sem and offering.year_offered=current_year));
 end;
 $$;
 
@@ -188,6 +192,7 @@ begin
 
     select 'credit_'||entry_number into table_name;
 
+	execute format('
     select count(*)
     from (
         select distinct offering.sem_offered, offering.year_offered
@@ -198,7 +203,7 @@ begin
             or
             (offering.year_offered=(current_year-1))
         )
-    )
+    )', table_name)
     into total_sems;
 
     if total_sems>=2 then

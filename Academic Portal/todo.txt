@@ -5,6 +5,7 @@
 
 -- Add raise messages wherever required
 
--- Fix withdraw method
 -- both enroll and credit should not be allowed to a student in the same course
 -- Add credit or audit type in ticket
+
+-- Student should not take 1+ courses in same slot
