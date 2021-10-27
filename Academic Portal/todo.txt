@@ -5,12 +5,5 @@
 
 -- Add raise messages wherever required
 
--- both enroll and credit should not be allowed to a student in the same course
--- Add credit or audit type in ticket
-
--- Student should not take 1+ courses in same slot
-
--- is_student_eligible_for_credit <- Add dean approval clause here
-
 assumptions:
-no ticket generation for audit
+When approved, the student can credit or audit the course
