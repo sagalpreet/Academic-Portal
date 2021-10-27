@@ -163,6 +163,29 @@ begin
 end;
 $$;
 
+create or replace function is_slot_conflicting_for_student(entry_number char(11), offering_id int)
+returns boolean
+language plpgsql
+as $$
+declare
+    current_year int;
+    current_sem int;
+    is_conflicting boolean;
+begin
+    current_sem = get_current_sem();
+    current_year = get_current_year();
+    execute format('
+    (select slot_id from offering where offering=offering_id)
+    in
+    (
+        (select slot_id from offering, %I as t where offering.id=t.offering_id)
+        union
+        (select slot_id from offering, %I as t where offering.id=t.offering_id)
+    )', 'credit_'||entry_number, 'audit_'||entry_number) into is_conflicting;
+    return is_conflicting;
+end;
+$$;
+
 create or replace function is_student_eligible_for_credit(entry_number char(11), offering_id int)
 returns boolean
 language plpgsql
@@ -181,6 +204,10 @@ begin
     current_sem = get_current_sem();
 
     if (not is_offering_offered_in_current_sem_and_year(offering_id)) then
+        return false;
+    end if;
+
+    if (is_slot_conflicting_for_student(entry_number, offering_id)) then
         return false;
     end if;
 
@@ -247,6 +274,10 @@ begin
     current_sem = get_current_sem();
 
     if (not is_offering_offered_in_current_sem_and_year(offering_id)) then
+        return false;
+    end if;
+
+    if (is_slot_conflicting_for_student(entry_number, offering_id)) then
         return false;
     end if;
 
