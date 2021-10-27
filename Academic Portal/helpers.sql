@@ -260,16 +260,25 @@ begin
     into total_sems;
 
     if total_sems>=2 then
-    execute format('select sum(course.credit)/2
-        from %I as t, offering, course
-        where t.offering_id=offering.id and offering.course_id=course.id and
-        (
-            (offering.year_offered=current_year and offering.sem_offered<current_sem)
-            or
-            (offering.year_offered=(current_year-1) and offering.sem_offered>=current_sem)
-        )', table_name) into avg_credit;
+        execute format('select sum(course.credit)/2
+            from %I as t, offering, course
+            where t.offering_id=offering.id and offering.course_id=course.id and
+            (
+                (offering.year_offered=current_year and offering.sem_offered<current_sem)
+                or
+                (offering.year_offered=(current_year-1) and offering.sem_offered>=current_sem)
+            )', table_name) into avg_credit;
+    elsif total_sems==1 then
+        execute format('select sum(course.credit)
+            from %I as t, offering, course
+            where t.offering_id=offering.id and offering.course_id=course.id and
+            (
+                (offering.year_offered=current_year and offering.sem_offered<current_sem)
+                or
+                (offering.year_offered=(current_year-1) and offering.sem_offered>=current_sem)
+            )', table_name) into avg_credit;
     else
-        avg_credit=0;
+        avg_credit=18.5;
     end if;
 
     execute format('select sum(course.credit)
