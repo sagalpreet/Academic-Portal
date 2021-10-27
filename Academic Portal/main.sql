@@ -101,16 +101,6 @@ create table prereq(
     foreign key (prereq_id) references course(id)
 );
 
-create table offering_constr(
-    offering_id int,
-    batch_id int,
-    min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0),
-    
-    primary key (offering_id, batch_id),
-    foreign key (batch_id) references batch(id),
-    foreign key (offering_id) references offering(id)
-);
-
 create table d_ticket(
     id int not null,
     entry_number char(11),

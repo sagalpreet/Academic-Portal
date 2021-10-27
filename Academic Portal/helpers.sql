@@ -211,11 +211,11 @@ begin
         return false;
     end if;
 
-    select (
-        select offering_constr.min_gpa<=get_gpa(entry_number)
-        from offering_constr, student
-        where offering_constr.batch_id=student.batch_id and offering_constr.offering_id=offering_id
-    ) = true into satisfies_offering_constraints;
+    execute format('(select (
+        select constr.min_gpa<=get_gpa(entry_number)
+        from %I constr, student
+        where constr.batch_id=student.batch_id and constr.offering_id=offering_id
+    ) = true)', 'constr_'||NEW.id) into satisfies_offering_constraints;
 
     select 'credit_'||entry_number into table_name;
 
@@ -281,11 +281,11 @@ begin
         return false;
     end if;
 
-    select (
-        select offering_constr.min_gpa<=get_gpa(entry_number)
-        from offering_constr, student
-        where offering_constr.batch_id=student.batch_id and offering_constr.offering_id=offering_id
-    ) = true into satisfies_offering_constraints;
+    execute format('(select (
+        select constr.min_gpa<=get_gpa(entry_number)
+        from %I constr, student
+        where constr.batch_id=student.batch_id and constr.offering_id=offering_id
+    ) = true)', 'constr_'||NEW.id) into satisfies_offering_constraints;
 
     return (select satisfies_offering_constraints);
 end;

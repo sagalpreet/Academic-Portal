@@ -218,14 +218,14 @@ security definer
 as $$
 declare
     offering_id int;
-    temp_table_name varchar(100);
+    constr_table_name varchar(100);
 begin
+    select 'constr_'||offering_id into constr_table_name;
+
     insert into offering(course_id, inst_id, sem_offered, year_offered, slot_id) values(course_id, inst_id, sem_offered, year_offered, slot_id) returning id into offering_id;
-    select 'temp_offering_constr_'||offering_id into temp_table_name;
-    execute format('create table %I (batch_id int, min_gpa numeric(4, 2))', temp_table_name);
-    execute format('copy %I (batch_id, min_gpa) from %L with (format csv)', temp_table_name, constraints);
-    execute format('insert into offering_constr (offering_id, batch_id, min_gpa) select %L, batch_id, min_gpa from %I', offering_id, temp_table_name);
-    execute format('drop table %I', temp_table_name);
+    execute format('create table %I (batch_id int primary key, min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0), foreign key (batch_id) references batch(id))', constr_table_name);
+
+    execute format('copy %I (batch_id, min_gpa) from %L with (format csv)', constr_table_name, constraints);
 end;
 $$;
 
