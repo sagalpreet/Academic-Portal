@@ -186,6 +186,31 @@ begin
 end;
 $$;
 
+create or replace function does_student_satisfy_prereq(entry_number char(11), offering_id int)
+returns boolean
+language plpgsql
+as $$
+declare
+    course_id char(5);
+    satisfies boolean;
+begin
+    select offering.course_id into course_id from offering where offering.id=offering_id;
+
+    execute format('
+        select
+        (select prereq.prereq_id from prereq where prereq.course_id=%L)
+        all in
+        (
+        (select course_id from %I where grade not in (\'F\', \'E\'))
+        union
+        (select course_id from %I where grade not in (\'NF\'))
+        )
+    )', course_id, 'credit_'||entry_number, 'audit_'||entry_number) into satisfies;
+
+    return satisfies;
+end;
+$$;
+
 create or replace function is_student_eligible_for_credit(entry_number char(11), offering_id int)
 returns boolean
 language plpgsql
@@ -193,6 +218,7 @@ as $$
 declare
     satisfies_offering_constraints boolean;
     satisfies_credit_constraints boolean;
+    is_dean_approved boolean;
     table_name char(18);
     avg_credit numeric(4, 2);
     this_sem_credits numeric(4, 2);
@@ -254,7 +280,9 @@ begin
 
     select (this_sem_credits)<(1.25*avg_credit) into satisfies_credit_constraints;
 
-    return (select satisfies_offering_constraints and satisfies_credit_constraints);
+    execute format('select (true in (select d_verdict from %I where offering_id=%L))', 's_ticket_'||entry_number, offering_id) into is_dean_approved;
+
+    return ((satisfies_offering_constraints and satisfies_credit_constraints and does_student_satisfy_prereq(entry_number, offering_id)) or (is_dean_approved));
 end;
 $$;
 
@@ -264,7 +292,7 @@ language plpgsql
 as $$
 declare
     satisfies_offering_constraints boolean;
-    satisfies_credit_constraints boolean;
+    is_dean_approved boolean;
     table_name char(18);
     current_year int;
     current_sem int;
@@ -287,6 +315,8 @@ begin
         where constr.batch_id=student.batch_id and constr.offering_id=offering_id
     ) = true)', 'constr_'||NEW.id) into satisfies_offering_constraints;
 
-    return (select satisfies_offering_constraints);
+    execute format('select (true in (select d_verdict from %I where offering_id=%L))', 's_ticket_'||entry_number, offering_id) into is_dean_approved;
+
+    return ((satisfies_offering_constraints  and does_student_satisfy_prereq(entry_number, offering_id)) or is_dean_approved);
 end;
 $$;

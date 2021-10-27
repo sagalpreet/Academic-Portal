@@ -1,18 +1,5 @@
 -- PROCEDURES
 
-create or replace procedure update_entry_number(entry_number_old char(11), entry_number_new char(11))
-language plpgsql
-as $$
-declare
-begin
-    -- Verify that the entry_number_new is not taken
-    execute format('alter table %I rename to %I', 'credit_'||entry_number_old, 'credit_'||entry_number_new);
-    execute format('alter table %I rename to %I', 'audit_'||entry_number_old, 'audit_'||entry_number_new);
-    execute format('alter role %I rename to %I', entry_number_old, entry_number_new);
-    update student set entry_number=entry_number_new where entry_number=entry_number_old;
-end;
-$$;
-
 ---------------------------------------------------------
 
 create or replace procedure enroll_credit(offering_id int)
@@ -22,13 +9,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    if is_student_eligible_for_credit(entry_number, offering_id) and is_add_open() then
-        execute format('delete from %I where entry_number=%L', 'audit_'||offering_id, entry_number);
-        execute format('delete from %I where offering_id=%L', 'audit_'||entry_number, offering_id);
-
-        execute format('insert into %I(entry_number) (%L)', 'credit_'||offering_id, entry_number); -- for the instructor
-        execute format('insert into %I(offering_id) (%L)', 'credit_'||entry_number, offering_id); -- for the student
-    end if;
+    execute format('insert into %I(offering_id) (%L)', 'credit_'||entry_number, offering_id);
 end;
 $$;
 
@@ -39,13 +20,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    if is_student_eligible_for_audit(entry_number, offering_id) and is_add_open() then
-        execute format('delete from %I where entry_number=%L', 'credit_'||offering_id, entry_number);
-        execute format('delete from %I where offering_id=%L', 'credit_'||entry_number, offering_id);
-
-        execute format('insert into %I(entry_number) (%L)', 'audit_'||offering_id, entry_number); -- for the instructor
-        execute format('insert into %I(offering_id) (%L)', 'audit_'||entry_number, offering_id); -- for the student
-    end if;
+    execute format('insert into %I(offering_id) (%L)', 'audit_'||entry_number, offering_id);
 end;
 $$;
 
@@ -56,18 +31,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    if not is_offering_offered_in_current_sem_and_year(offering_id) then
-        raise EXCEPTION 'This offering is not being offered this semester';
-        return;
-    end if;
-    if not is_add_open() then
-        raise EXCEPTION 'Drop window is not open';
-        return;
-    end if;
-    execute format('delete from %I where entry_number=%L', 'credit_'||offering_id, entry_number);
-    execute format('delete from %I where offering_id=%L', 'credit_'||entry_number, offering_id);
-    execute format('delete from %I where entry_number=%L', 'audit_'||offering_id, entry_number);
-    execute format('delete from %I where offering_id=%L', 'audit_'||entry_number, offering_id);
+    execute format('insert into %I(offering_id) (%L)', 'drop_'||entry_number, offering_id);
 end;
 $$;
 
@@ -78,40 +42,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    if not is_offering_offered_in_current_sem_and_year(offering_id) then
-        raise EXCEPTION 'This offering is not being offered this semester';
-        return;
-    end if;
-    if not is_withdraw_open() then
-        raise EXCEPTION 'Withdraw is not open';
-        return;
-    end if;
-
-    execute format('delete from %I where entry_number=%L', 'audit_'||offering_id, entry_number);
-    execute format('delete from %I where offering_id=%L', 'audit_'||entry_number, offering_id);
-    execute format('delete from %I where entry_number=%L', 'credit_'||offering_id, entry_number);
-    execute format('delete from %I where offering_id=%L', 'credit_'||entry_number, offering_id);
-
     execute format('insert into %I(offering_id) (%L)', 'withdraw_'||entry_number, offering_id);
-    execute format('insert into %I(entry_number) (%L)', 'withdraw_'||offering_id, entry_number);
-end;
-$$;
-
-create or replace procedure drop_offering(offering_id int)
-language plpgsql
-as $$
-declare
-    entry_number char(11);
-begin
-    entry_number = get_id();
-    if (not is_offering_open(offering_id)) then
-        raise EXCEPTION 'Offering is not open';
-        return;
-    end if;
-    execute format('delete from %I where entry_number=%L', 'audit_'||offering_id, entry_number);
-    execute format('delete from %I where offering_id=%L', 'audit_'||entry_number, offering_id);
-    execute format('delete from %I where entry_number=%L', 'credit_'||offering_id, entry_number);
-    execute format('delete from %I where offering_id=%L', 'credit_'||entry_number, offering_id);
 end;
 $$;
 
@@ -121,10 +52,8 @@ language plpgsql
 as $$
 declare
     entry_number char(11);
-    inst_id char(11);
 begin
     entry_number = get_id();
-    select offering.inst_id into inst_id from offering where offering.id=offering_id;
 
     execute format('insert into %I(offering_id) values (%L, %L)', 's_ticket_'||entry_number, offering_id);
 end;
@@ -135,12 +64,9 @@ language plpgsql
 as $$
 declare
     inst_id char(11);
-    advisor_id char(11);
 begin
     inst_id = get_id();
-    advisor_id = (select from student, advisor where student.batch_id=advisor.batch_id);
     execute format('update %I set verdit=%L where id=%L and entry_number=%L', 'i_ticket_'||inst_id, verdict, ticket_id, entry_number);
-    execute format('insert into %I(id, entry_number, offering_id) values (%L, %L, %L)', 'b_ticket_'||advisor_id, ticket_id, entry_number, offering_id);
 end;
 $$;
 
@@ -152,7 +78,6 @@ declare
 begin
     advisor_id = get_id();
     execute format('update %I set verdit=%L where id=%L and entry_number=%L', 'b_ticket_'||advisor_id, verdict, ticket_id, entry_number);
-    execute format('insert into %I(id, entry_number, offering_id) values (%L, %L, %L)', 'd_ticket', entry_number, offering_id);
 end;
 $$;
 
@@ -164,67 +89,36 @@ begin
     execute format('update %I set verdit=%L where id=%L and entry_number=%L', 'd_ticket', verdict, ticket_id, entry_number);
 end;
 $$;
+---------------------------------------------
 
-create or replace function get_ticket_verdict_i(ticket_id int, entry_number char(11))
-returns boolean
+create or replace procedure add_offering(course_id char(5), slot_id int, constraints varchar(2048))
 language plpgsql
 as $$
 declare
     inst_id char(11);
+    current_sem int;
+    current_year int;
     offering_id int;
-    verdict boolean;
+    constr_table_name varchar(100);
 begin
-    execute format('select offering_id from %I where id=%L', 's_ticket_'||entry_number, ticked_id) into offering_id;
+    inst_id = get_id();
+    current_sem = get_current_sem();
+    current_year = get_current_year();
 
-    select instructor.id into inst_id
-    from offering, instructor
-    where offering.inst_id =instructor.id and offering.id=offering_id;
+    insert into offering(course_id, inst_id, sem_offered, year_offered, slot_id) values(course_id, inst_id, current_sem, current_year, slot_id) returning id into offering_id;
 
-    execute format('select verdict from %I where id=%L and entry_number=%L', 'i_ticket_'||inst_id, ticked_id, entry_number) into verdict;
-    return verdict;
+    raise NOTICE 'Offering added with ID: %', offering_id;
 end;
 $$;
 
-create or replace function get_ticket_verdict_b(ticket_id int, entry_number char(11))
-returns boolean
-language plpgsql
-as $$
-declare
-    verdict boolean;
-    advisor_id char(11);
-begin
-    select advisor.inst_id into advisor_id
-    from student, advisor
-    where student.batch_id = advisor.batch_id and student.entry_number = entry_number;
-    
-    execute format('select verdict from %I where id=%L and entry_number=%L', 'b_ticket_'||id, ticket_id, entry_number) into verdict;
-    return verdict;
-end;
-$$;
-
-create or replace function get_ticket_verdict_d(ticket_id int, entry_number char(11))
-returns boolean
-language plpgsql
-as $$
-begin
-    return (select d_ticket.verdict from d_ticket where d_ticket.id = ticked_id and d_ticket.entry_number = entry_number);
-end;
-$$;
----------------------------------------------
-
-create or replace procedure add_offering(course_id char(5), inst_id char(11), sem_offered int, year_offered int, slot_id int, constraints varchar(2048))
+create or replace procedure add_constraints(offering_id char(5), constraints varchar(2048))
 language plpgsql
 security definer
 as $$
 declare
-    offering_id int;
     constr_table_name varchar(100);
 begin
     select 'constr_'||offering_id into constr_table_name;
-
-    insert into offering(course_id, inst_id, sem_offered, year_offered, slot_id) values(course_id, inst_id, sem_offered, year_offered, slot_id) returning id into offering_id;
-    execute format('create table %I (batch_id int primary key, min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0), foreign key (batch_id) references batch(id))', constr_table_name);
-
     execute format('copy %I (batch_id, min_gpa) from %L with (format csv)', constr_table_name, constraints);
 end;
 $$;
@@ -280,7 +174,10 @@ declare
     no_extra_student boolean;
     some_students_left boolean;
 begin
-    -- COPY zip_codes FROM '/path/to/csv/ZIP_CODES.txt' WITH (FORMAT csv);
+    if (not is_offering_offered_in_current_sem_and_year(get_current_sem(), get_current_year())) then
+        raise EXCEPTION 'Offering has been completed';
+    end if;
+    
     select 'temp_credit_grades_'||offering_id into temp_table_name;
     select 'credit_'||offering_id into table_name;
     execute format('create table %I(entry_number char(11), grade credit_grade)', temp_table_name);
@@ -333,12 +230,15 @@ declare
     no_extra_student boolean;
     some_students_left boolean;
 begin
-    -- COPY zip_codes FROM '/path/to/csv/ZIP_CODES.txt' WITH (FORMAT csv);
+    if (not is_offering_offered_in_current_sem_and_year(get_current_sem(), get_current_year())) then
+        raise EXCEPTION 'Offering has been completed';
+    end if;
+
     select 'temp_audit_grades_'||offering_id into temp_table_name;
     select 'audit_'||offering_id into table_name;
     execute format('create table %I(entry_number char(11), grade audit_grade)', temp_table_name);
     execute format('copy %I from %L with (format csv)', temp_table_name, filepath);
-execute format('
+    execute format('
         not exists
         (
             (select entry_number from %I)
@@ -383,7 +283,6 @@ as $$
 declare
     offering_row record;
     course_info record;
-
 begin
     raise INFO 'Entry number: %', entry_number;
     raise INFO 'Name: %', (select name from student where entry_number=entry_number);

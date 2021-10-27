@@ -125,13 +125,15 @@ create role instructor;
 create role advisor;
 create role dean_acad with login;
 
-grant select on course, offering, department, batch, instructor, slot to student;
+revoke all on * from public;
 
-grant select on course, offering, department, batch, instructor, slot to instructor;
+grant select on table course, offering, department, batch, instructor, slot, prereq to student;
+
+grant select on table course, offering, department, batch, instructor, slot, prereq to instructor;
 
 -- grant select on all tables in schema public to dean_acad;
-grant select on course, offering, department, batch, instructor, slot to dean_acad;
-grant insert on course, offering, slot, department, batch, instructor to dean_acad;
+grant select on table course, offering, department, batch, instructor, slot to dean_acad;
+grant insert on table course, slot, department, batch, instructor, student to dean_acad;
 
 revoke all on department from student;
 
@@ -140,14 +142,3 @@ grant student to 2019csb1113; -- All student permissions inherited by 2019csb111
 -- can privilege be granted using triggers?
 
 
-
-
--- PROCEDURES
-
-create or replace procedure generate_transcript(entry_number char(11), semester int, year int)
-language plpgsql
-as $$
-declare
-begin
-end;
-$$; 
