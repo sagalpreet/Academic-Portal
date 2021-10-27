@@ -8,6 +8,7 @@
 create or replace function add_offering_trigger_function()
 returns trigger
 language plpgsql
+security definer
 as $$
 begin
     execute format('create table %I (entry_number char(11) primary key, grade credit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'credit_'||NEW.id);
@@ -45,6 +46,24 @@ create trigger add_offering
 after insert on offering
 for each row
 execute function add_offering_trigger_function();
+
+create or replace function add_offering_security_check()
+returns trigger
+language plpgsql
+security invoker
+as $$
+begin
+    if (NEW.inst_id <> get_id()) then
+        raise EXCEPTION 'Illegal action';
+    end if;
+    return NEW;
+end;
+$$;
+
+create trigger add_offering_security_check
+before insert on offering
+for each row
+execute function add_offering_security_check();
 
 ---------------------------------------------------------
 
