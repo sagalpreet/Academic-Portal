@@ -16,6 +16,27 @@ begin
     execute format('create table %I (entry_number char(11) primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'withdraw_'||NEW.id);
 
     execute format('create table %I (batch_id int primary key, min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0), foreign key (batch_id) references batch(id))', 'constr_'||NEW.id);
+    execute format('
+        create or replace function %I()
+        returns trigger
+        language plpgsql
+        as $$
+        begin
+            if (NEW.batch_id <> OLD.batch_id) then
+                raise EXCEPTION \'Cannot change batch\';
+            end if;
+            if (NEW.min_gpa>OLD.min_gpa) then
+                raise EXCEPTION \'Cannot tighten GPA constraint\';
+            end if;
+            return NEW;
+        end;
+        $$;
+
+        create trigger %I
+        before update on %I
+        for each row
+        execute function %I();
+    ', 'constr_update_func_'||NEW.id, 'constr_update_'||NEW.id, 'constr_update_func_'||NEW.id);
     return NEW;
 end;
 $$;
