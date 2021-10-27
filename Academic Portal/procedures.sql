@@ -111,7 +111,7 @@ begin
 end;
 $$;
 
-create or replace procedure add_constraints(offering_id char(5), constraints varchar(2048))
+create or replace procedure add_constraints(offering_id char(5), batch_id int, min_gpa numeric(4, 2))
 language plpgsql
 security definer
 as $$
@@ -119,7 +119,7 @@ declare
     constr_table_name varchar(100);
 begin
     select 'constr_'||offering_id into constr_table_name;
-    execute format('copy %I (batch_id, min_gpa) from %L with (format csv)', constr_table_name, constraints);
+    execute format('insert into %I (batch_id, min_gpa) values (%L, %L)', constr_table_name, batch_id, min_gpa);
 end;
 $$;
 
