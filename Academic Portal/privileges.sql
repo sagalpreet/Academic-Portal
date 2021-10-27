@@ -40,12 +40,12 @@ grant execute on procedure stop_withdraw to dean_acad;
 grant execute on procedure update_credit_grades to instructor;
 grant execute on procedure update_audit_grades to instructor;
 
-grant execute on procedure generate_transcripts to dean_acad;
+grant execute on procedure generate_transcript to dean_acad;
 
 -- TRIGGER FUNCTIONS
-revoke all from function add_offering_trigger_function from public;
-revoke all from function add_s_ticket_trigger_function from public;
-revoke all from function add_student_trigger_function from public;
-revoke all from function add_instructor_trigger_function from public;
-revoke all from function add_advisor_trigger_function from public;
-revoke all from function d_ticket_verdict_func from public;
+revoke all on function add_offering_trigger_function from public;
+revoke all on function add_s_ticket_trigger_function from public;
+revoke all on function add_student_trigger_function from public;
+revoke all on function add_instructor_trigger_function from public;
+revoke all on function add_advisor_trigger_function from public;
+revoke all on function d_ticket_verdict_func from public;

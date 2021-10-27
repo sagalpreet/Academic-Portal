@@ -174,14 +174,14 @@ declare
 begin
     current_sem = get_current_sem();
     current_year = get_current_year();
-    execute format('
+    execute format($condition_str$
     (select slot_id from offering where offering=offering_id)
     in
     (
         (select slot_id from offering, %I as t where offering.id=t.offering_id)
         union
         (select slot_id from offering, %I as t where offering.id=t.offering_id)
-    )', 'credit_'||entry_number, 'audit_'||entry_number) into is_conflicting;
+    )$condition_str$, 'credit_'||entry_number, 'audit_'||entry_number) into is_conflicting;
     return is_conflicting;
 end;
 $$;
@@ -196,16 +196,16 @@ declare
 begin
     select offering.course_id into course_id from offering where offering.id=offering_id;
 
-    execute format('
+    execute format($condition_str$
         select
         (select prereq.prereq_id from prereq where prereq.course_id=%L)
         all in
         (
-        (select course_id from %I where grade not in (\'F\', \'E\'))
+        (select course_id from %I where grade not in ('F', 'E'))
         union
-        (select course_id from %I where grade not in (\'NF\'))
+        (select course_id from %I where grade not in ('NF'))
         )
-    )', course_id, 'credit_'||entry_number, 'audit_'||entry_number) into satisfies;
+    $condition_str$, course_id, 'credit_'||entry_number, 'audit_'||entry_number) into satisfies;
 
     return satisfies;
 end;
