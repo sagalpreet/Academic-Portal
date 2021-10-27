@@ -181,6 +181,7 @@ begin
     select 'temp_credit_grades_'||offering_id into temp_table_name;
     select 'credit_'||offering_id into table_name;
     execute format('create table %I(entry_number char(11), grade credit_grade)', temp_table_name);
+    execute format('revoke all on %I from public', temp_table_name);
     execute format('copy %I from %L with (format csv)', temp_table_name, filepath);
 
 	execute format('
@@ -237,7 +238,10 @@ begin
     select 'temp_audit_grades_'||offering_id into temp_table_name;
     select 'audit_'||offering_id into table_name;
     execute format('create table %I(entry_number char(11), grade audit_grade)', temp_table_name);
+    execute format('revoke all on %I from public', temp_table_name);
     execute format('copy %I from %L with (format csv)', temp_table_name, filepath);
+    execute format('revoke all on %I from public', temp_table_name);
+    execute format('grant all on %I to owner', temp_table_name);
     execute format('
         not exists
         (

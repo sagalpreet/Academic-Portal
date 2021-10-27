@@ -118,27 +118,3 @@ create type audit_grade as enum ('NP', 'NF');
 -----
 insert into registration_status(id, add_open, withdraw_open, current_sem, current_year) values(true, false, false, NULL, NULL);
 
--- PRIVILEGES
-
-create role student;
-create role instructor;
-create role advisor;
-create role dean_acad with login;
-
-revoke all on * from public;
-
-grant select on table course, offering, department, batch, instructor, slot, prereq to student;
-
-grant select on table course, offering, department, batch, instructor, slot, prereq to instructor;
-
--- grant select on all tables in schema public to dean_acad;
-grant select on table course, offering, department, batch, instructor, slot to dean_acad;
-grant insert on table course, slot, department, batch, instructor, student to dean_acad;
-
-revoke all on department from student;
-
-create role 2019csb1113 with login inherit; -- Can login, and inherits privileges
-grant student to 2019csb1113; -- All student permissions inherited by 2019csb1113
--- can privilege be granted using triggers?
-
-

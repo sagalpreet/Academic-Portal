@@ -39,6 +39,17 @@ begin
         execute function %I();
     ', 'constr_update_func_'||NEW.id, 'constr_update_'||NEW.id, 'constr_update_func_'||NEW.id);
     return NEW;
+
+    execute format('revoke all on table %I from public', 'credit_'||NEW.id);
+    execute format('grant select, update on table %I to %I', 'credit_'||NEW.id, NEW.inst_id);
+    execute format('revoke all on table %I from public', 'audit_'||NEW.id);
+    execute format('grant select, update on table %I to %I', 'audit_'||NEW.id, NEW.inst_id);
+    execute format('revoke all on table %I from public', 'drop_'||NEW.id);
+    execute format('grant select, update on table %I to %I', 'drop_'||NEW.id, NEW.inst_id);
+    execute format('revoke all on table %I from public', 'withdraw_'||NEW.id);
+    execute format('grant select, update on table %I to %I', 'withdraw_'||NEW.id, NEW.inst_id);
+
+    execute format('revoke all on function %I from public', 'constr_update_func_'||NEW.id);
 end;
 $$;
 
@@ -97,12 +108,18 @@ returns trigger
 language plpgsql
 as $$
 begin
+    execute format('create role %I', NEW.entry_number);
+    execute format('grant student to %I', NEW.entry_number);
+    
     execute format('create table %I (offering_id int primary key, grade credit_grade, foreign key (offering_id) references offering(id));', 'credit_'||NEW.entry_number);
     execute format('create table %I (offering_id int primary key, grade audit_grade, foreign key (offering_id) references offering(id));', 'audit_'||NEW.entry_number);
     execute format('create table %I (offering_id int primary key, foreign key (offering_id) references offering(id));', 'drop_'||NEW.entry_number);
-
     execute format('create table %I (offering_id int primary key, foreign key (offering_id) references offering(id));', 'withdraw_'||NEW.entry_number);
     execute format('create table %I (id serial primary key, offering_id int, i_verdict boolean, b_verdict boolean, d_verdict boolean);', 's_ticket_'||NEW.entry_number);
+
+    execute format('revoke all on %I, %I, %I, %I, %I from public', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
+    execute format('grant insert on %I, %I, %I, %I, %I to %I', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number, NEW.entry_number);
+
     execute format('create trigger %I
     after insert on %I
     for each row
@@ -271,6 +288,8 @@ begin
         execute function %I();
     ', 'enroll_withdraw_func_'||NEW.entry_number, NEW.entry_number, 'enroll_withdraw_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 'enroll_withdraw_func_'||NEW.entry_number);
 
+    execute format('revoke all on function %I, %I, %I, %I from public', 'enroll_credit_func_'||NEW.entry_number, 'enroll_audit_func_'||NEW.entry_number, 'enroll_drop_func_'||NEW.entry_number, 'enroll_withdraw_func_'||NEW.entry_number);
+
     return NEW;
 end;
 $$;
@@ -288,7 +307,14 @@ language plpgsql
 as $$
 declare
 begin
+    execute format('create role %I', NEW.id);
+    execute format('grant instructor to %I', NEW.id);
+
     execute format('create table %I (id int not null, entry_number char(11) not null, verdict boolean, primary key (id, entry_number), foreign key (entry_number) references student(entry_number));', 'i_ticket_'||NEW.id);
+
+    execute format('revoke all on table %I from public', 'i_ticket_'||NEW.id);
+    execute format('grant select, update on table %I to %I', 'i_ticket_'||NEW.id, NEW.id);
+
     execute format('
         create or replace function %I()
         returns trigger
@@ -316,6 +342,8 @@ begin
         execute function %I();
     ', 'i_ticket_verdict_func_'||NEW.id, , 'i_ticket_verdict_'||NEW.id, 'i_ticket_'||NEW.id, 'i_ticket_verdict_func_'||NEW.id);
 
+    execute format('revoke all on function %I from public', 'i_ticket_verdict_func_'||NEW.id);
+
     return NEW;
 end;
 $$;
@@ -332,7 +360,13 @@ returns trigger
 language plpgsql
 as $$
 begin
+    execute format('grant advisor to %I', NEW.inst_id);
+
     execute format('create table %I (id int not null, entry_number char(11) not null, verdict boolean, primary key (id, entry_number), foreign key (entry_number) references student(entry_number));', 'b_ticket_'||NEW.inst_id);
+
+    execute format('revoke all on table %I from public', 'b_ticket_'||NEW.inst_id);
+    execute format('grant select, update on table %I to %I', 'b_ticket_'||NEW.id, NEW.inst_id);
+    
     execute format('
         create or replace function %I()
         returns trigger
@@ -357,6 +391,8 @@ begin
         for each row
         execute function %I();
     ', 'b_ticket_verdict_func_'||NEW.id, 'b_ticket_verdict_'||NEW.id, 'b_ticket_'||NEW.inst_id, 'b_ticket_verdict_func_'||NEW.id);
+
+    execute format('revoke all on function %I from public', 'b_ticket_verdict_func_'||NEW.inst_id);
     return NEW;
 end;
 $$;
