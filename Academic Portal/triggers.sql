@@ -16,6 +16,36 @@ begin
     execute format('create table %I (entry_number char(11) primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'drop_'||NEW.id);
     execute format('create table %I (entry_number char(11) primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'withdraw_'||NEW.id);
 
+    execute format($credit_grade_update_func$
+        create or replace function %I()
+        returns trigger
+        as $func_body$
+        begin
+          execute format('update %I set grade=%L where offering_id=%L', 'credit_'||NEW.entry_number, NEW.grade, %L);
+        end;
+        $func_body$;
+
+        create trigger %I
+        after update on %I
+        for each row
+        execute function %I;
+    $credit_grade_update_func$, 'credit_grade_update_func_'||NEW.id, NEW.id, 'credit_grade_update_'||NEW.id, 'credit_grade_update_func_'||NEW.id);
+
+    execute format($audit_grade_update_func$
+        create or replace function %I()
+        returns trigger
+        as $func_body$
+        begin
+          execute format('update %I set grade=%L where offering_id=%L', 'audit_'||NEW.entry_number, NEW.grade, %L);
+        end;
+        $func_body$;
+
+        create trigger %I
+        after update on %I
+        for each row
+        execute function %I;
+    $audit_grade_update_func$, 'audit_grade_update_func_'||NEW.id, NEW.id, 'audit_grade_update_'||NEW.id, 'audit_grade_update_func_'||NEW.id);
+
     execute format('create table %I (batch_id int primary key, min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0), foreign key (batch_id) references batch(id))', 'constr_'||NEW.id);
     execute format($constr_update_str$
         create or replace function %I()
