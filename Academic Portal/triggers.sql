@@ -11,10 +11,6 @@ language plpgsql
 security definer
 as $$
 begin
-    if (is_slot_conflicting_for_instructor(NEW.inst_id, NEW.slot_id)) then
-        raise EXCEPTION 'Cannot offer two offerings in same slot';
-    end if;
-
     execute format('create table %I (entry_number char(11) primary key, grade credit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'credit_'||NEW.id);
     execute format('create table %I (entry_number char(11) primary key, grade audit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'audit_'||NEW.id);
     execute format('create table %I (entry_number char(11) primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'drop_'||NEW.id);
@@ -69,8 +65,12 @@ security invoker
 as $$
 begin
     if (NEW.inst_id <> get_id()) then
-        raise EXCEPTION 'Illegal action';
+        raise EXCEPTION 'Unauthorized action';
     end if;
+    if (is_slot_conflicting_for_instructor(NEW.inst_id, NEW.slot_id)) then
+        raise EXCEPTION 'Cannot offer two offerings in same slot';
+    end if;
+
     return NEW;
 end;
 $$;
