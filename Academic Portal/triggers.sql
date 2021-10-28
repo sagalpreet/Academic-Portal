@@ -37,7 +37,7 @@ begin
         before update on %I
         for each row
         execute function %I();
-    $constr_update_str$, 'constr_update_func_'||NEW.id, 'constr_update_'||NEW.id, 'constr_update_func_'||NEW.id);
+    $constr_update_str$, 'constr_update_func_'||NEW.id, 'constr_update_'||NEW.id, 'constr_'||NEW.id, 'constr_update_func_'||NEW.id);
     return NEW;
 
     execute format('revoke all on table %I from public', 'credit_'||NEW.id);
@@ -115,7 +115,7 @@ begin
     execute format('create table %I (offering_id int primary key, grade audit_grade, foreign key (offering_id) references offering(id));', 'audit_'||NEW.entry_number);
     execute format('create table %I (offering_id int primary key, foreign key (offering_id) references offering(id));', 'drop_'||NEW.entry_number);
     execute format('create table %I (offering_id int primary key, foreign key (offering_id) references offering(id));', 'withdraw_'||NEW.entry_number);
-    execute format('create table %I (id serial primary key, offering_id int, i_verdict boolean, b_verdict boolean, d_verdict boolean);', 's_ticket_'||NEW.entry_number);
+    execute format('create table %I (id serial primary key, offering_id int, i_verdict boolean, b_verdict boolean, d_verdict boolean, foreign key (offering_id) references offering(id));', 's_ticket_'||NEW.entry_number);
 
     execute format('revoke all on %I, %I, %I, %I, %I from public', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
     execute format('grant insert on %I, %I, %I, %I, %I to %I', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number, NEW.entry_number);
