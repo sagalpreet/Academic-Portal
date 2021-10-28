@@ -108,7 +108,7 @@ returns trigger
 language plpgsql
 as $$
 begin
-    execute format('create role %I with login', NEW.entry_number);
+    execute format('create role %I with login password %L', NEW.entry_number, 'iitrpr');
     execute format('grant student to %I', NEW.entry_number);
     
     execute format('create table %I (offering_id int primary key, grade credit_grade, foreign key (offering_id) references offering(id));', 'credit_'||NEW.entry_number);
@@ -307,7 +307,7 @@ language plpgsql
 as $$
 declare
 begin
-    execute format('create role %I with login', NEW.id);
+    execute format('create role %I with login password %L', NEW.id, 'iitrpr');
     execute format('grant instructor to %I', NEW.id);
 
     execute format('create table %I (id int not null, entry_number char(11) not null, verdict boolean, primary key (id, entry_number), foreign key (entry_number) references student(entry_number));', 'i_ticket_'||NEW.id);

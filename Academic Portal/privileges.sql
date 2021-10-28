@@ -3,7 +3,7 @@
 create role student;
 create role instructor;
 create role advisor;
-create role dean_acad with login;
+create role dean_acad with login 'iitrpr';
 
 revoke all on all tables in schema public from public;
 revoke all on all functions in schema public from public;
