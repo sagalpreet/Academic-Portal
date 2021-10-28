@@ -11,6 +11,10 @@ language plpgsql
 security definer
 as $$
 begin
+    if (is_slot_conflicting_for_instructor(NEW.inst_id, NEW.slot_id)) then
+        raise EXCEPTION 'Cannot offer two offerings in same slot';
+    end if;
+
     execute format('create table %I (entry_number char(11) primary key, grade credit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'credit_'||NEW.id);
     execute format('create table %I (entry_number char(11) primary key, grade audit_grade, foreign key (entry_number) references student(entry_number) on update cascade);', 'audit_'||NEW.id);
     execute format('create table %I (entry_number char(11) primary key, foreign key (entry_number) references student(entry_number) on update cascade);', 'drop_'||NEW.id);
@@ -137,6 +141,9 @@ begin
             if not (is_student_eligible_for_credit(entry_number, NEW.offering_id) and is_add_open()) then
                 raise EXCEPTION 'Not eligible to credit this course';
             end if
+            if (NEW.grade = NULL) then
+                raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
+            end if;
             
             entry_number = %L;
             
@@ -169,6 +176,9 @@ begin
             if not (is_student_eligible_for_audit(entry_number, NEW.offering_id) and is_add_open()) then
                 raise EXCEPTION 'Not eligible to credit this course';
             end if
+            if (NEW.grade = NULL) then
+                raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
+            end if;
             
             entry_number = %L;
             

@@ -163,6 +163,24 @@ begin
 end;
 $$;
 
+create or replace function is_slot_conflicting_for_instructor(inst_id char(11), slot_id int)
+returns boolean
+language plpgsql
+as $$
+declare
+    current_year int;
+    current_sem int;
+    is_conflicting boolean;
+begin
+    current_sem = get_current_sem();
+    current_year = get_current_year();
+    execute format($condition_str$
+      select %L in (select slot_id from offering where inst_id=%L and sem_offered=%L and year_offered=%L)
+    $condition_str$, slot_id, inst_id, current_sem, current_year) into is_conflicting;
+    return is_conflicting;
+end;
+$$;
+
 create or replace function is_slot_conflicting_for_student(entry_number char(11), offering_id int)
 returns boolean
 language plpgsql
@@ -175,13 +193,13 @@ begin
     current_sem = get_current_sem();
     current_year = get_current_year();
     execute format($condition_str$
-    (select slot_id from offering where offering=offering_id)
+    (select slot_id from offering where offering=%L)
     in
     (
-        (select slot_id from offering, %I as t where offering.id=t.offering_id)
+        (select slot_id from offering, %I as t where offering.id=t.offering_id and sem_offered=%L and year_offered=%L)
         union
-        (select slot_id from offering, %I as t where offering.id=t.offering_id)
-    )$condition_str$, 'credit_'||entry_number, 'audit_'||entry_number) into is_conflicting;
+        (select slot_id from offering, %I as t where offering.id=t.offering_id and sem_offered=%L and year_offered=%L)
+    )$condition_str$, offering_id, 'credit_'||entry_number, current_sem, current_year 'audit_'||entry_number, current_sem, current_year) into is_conflicting;
     return is_conflicting;
 end;
 $$;
