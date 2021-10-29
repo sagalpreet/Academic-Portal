@@ -101,6 +101,13 @@ create table prereq(
     foreign key (prereq_id) references course(id)
 );
 
+-- TYPES
+
+create type credit_grade as enum ('F', 'E', 'D-', 'D', 'C-', 'C', 'B-', 'B', 'A-', 'A');
+create type audit_grade as enum ('NP', 'NF');
+
+-- MISCELLANEOUS
+
 create table d_ticket(
     id int not null,
     entry_number char(11),
@@ -110,11 +117,5 @@ create table d_ticket(
     foreign key (entry_number) references student(entry_number)
 );
 
--- TYPES
-
-create type credit_grade as enum ('F', 'E', 'D-', 'D', 'C-', 'C', 'B-', 'B', 'A-', 'A');
-create type audit_grade as enum ('NP', 'NF');
-
------
 insert into registration_status(id, add_open, withdraw_open, current_sem, current_year) values(true, false, false, NULL, NULL);
 

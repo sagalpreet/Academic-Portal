@@ -3,9 +3,10 @@
 create role student;
 create role instructor;
 create role advisor;
-create role dean_acad with login password 'iitrpr';
+create role dean_acad with login password 'iitrpr' createrole references;
 
 revoke all on all tables in schema public from public;
+grant references on all tables in schema public to public;
 revoke all on all functions in schema public from public;
 revoke all on all procedures in schema public from public;
 

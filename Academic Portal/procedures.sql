@@ -113,7 +113,6 @@ $$;
 
 create or replace procedure add_constraints(offering_id char(5), batch_id int, min_gpa numeric(4, 2))
 language plpgsql
-security definer
 as $$
 declare
     constr_table_name varchar(100);

@@ -20,6 +20,8 @@ begin
     $credit_grade_update_func$
         create or replace function %I()
         returns trigger
+        language plpgsql
+        security definer
         as $func_body$
         begin
           execute format(%L, %s, NEW.grade, %L);
@@ -41,6 +43,8 @@ begin
     $audit_grade_update_func$
         create or replace function %I()
         returns trigger
+        language plpgsql
+        security definer
         as $func_body$
         begin
           execute format(%L, %s, NEW.grade, %L);
@@ -64,6 +68,7 @@ begin
         create or replace function %I()
         returns trigger
         language plpgsql
+        security definer
         as $trigger_func$
         begin
             if (NEW.batch_id <> OLD.batch_id) then
@@ -160,6 +165,7 @@ $$;
 create or replace function add_student_trigger_function()
 returns trigger
 language plpgsql
+security definer
 as $$
 begin
     execute format('create role %I with login password %L', NEW.entry_number, 'iitrpr');
@@ -191,7 +197,7 @@ begin
             begin
                 if not (is_student_eligible_for_credit(entry_number, NEW.offering_id) and is_add_open()) then
                     raise EXCEPTION 'Not eligible to credit this course';
-                end if
+                end if;
                 if (NEW.grade = NULL) then
                     raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
                 end if;
@@ -238,7 +244,7 @@ begin
         begin
             if not (is_student_eligible_for_audit(entry_number, NEW.offering_id) and is_add_open()) then
                 raise EXCEPTION 'Not eligible to credit this course';
-            end if
+            end if;
             if (NEW.grade = NULL) then
                 raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
             end if;
@@ -285,11 +291,9 @@ begin
             begin
                 if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
                     raise EXCEPTION 'Offering is from previous semester and year';
-                    return;
                 end if;
                 if not is_add_open() then
                     raise EXCEPTION 'Drop window is not open';
-                    return;
                 end if;
                 
                 entry_number = %L;
@@ -342,11 +346,9 @@ begin
         begin
             if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
                 raise EXCEPTION 'Offering is from previous semester and year';
-                return;
             end if;
             if not is_withdraw_open() then
                 raise EXCEPTION 'Withdraw window is not open';
-                return;
             end if;
             
             entry_number = %L;
@@ -405,6 +407,7 @@ execute function add_student_trigger_function();
 create or replace function add_instructor_trigger_function()
 returns trigger
 language plpgsql
+security definer
 as $$
 declare
 begin
@@ -467,6 +470,7 @@ execute function add_instructor_trigger_function();
 create or replace function add_advisor_trigger_function()
 returns trigger
 language plpgsql
+security definer
 as $$
 begin
     execute format('grant advisor to %I', NEW.inst_id);
@@ -474,7 +478,7 @@ begin
     execute format('create table %I (id int not null, entry_number char(11) not null, verdict boolean, primary key (id, entry_number), foreign key (entry_number) references student(entry_number));', 'b_ticket_'||NEW.inst_id);
 
     execute format('revoke all on table %I from public', 'b_ticket_'||NEW.inst_id);
-    execute format('grant select, update on table %I to %I', 'b_ticket_'||NEW.id, NEW.inst_id);
+    execute format('grant select, update on table %I to %I', 'b_ticket_'||NEW.inst_id, NEW.inst_id);
     
     execute format($b_ticket_verdict_trigger_func$
         create or replace function %I()
@@ -501,12 +505,12 @@ begin
         execute function %I();
     $b_ticket_verdict_trigger_func$,
     
-    'b_ticket_verdict_func_'||NEW.id,
+    'b_ticket_verdict_func_'||NEW.inst_id,
     'insert into %I(id, entry_number) values (%L, %L, %L)', $_$'d_ticket_'||advisor_id$_$,
     'update %I set i_verdit=%L where id=%L', $_$'s_ticket_'||OLD.entry_number$_$,
-    'b_ticket_verdict_'||NEW.id,
+    'b_ticket_verdict_'||NEW.inst_id,
     'b_ticket_'||NEW.inst_id,
-    'b_ticket_verdict_func_'||NEW.id
+    'b_ticket_verdict_func_'||NEW.inst_id
     
     );
 
