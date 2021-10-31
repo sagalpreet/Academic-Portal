@@ -306,7 +306,7 @@ begin
     raise INFO '+------------------+';
     for offering_row in execute format('select t.offering_id, t.grade from %I t, offering o where t.offering_id=o.id and o.sem_offered=%L and o.year_offered=%L', 'credit_'||entry_number, sem, year)
     loop
-        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
+        select course.id, course.name into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
         raise INFO '% · % · %', course_info.id, course_info.name, offering_row.grade;
     end loop;
 
@@ -316,7 +316,7 @@ begin
     raise INFO '+-----------------+';
     for offering_row in execute format('select t.offering_id, t.grade from %I t, offering o where t.offering_id=o.id and o.sem_offered=%L and o.year_offered=%L', 'audit_'||entry_number, sem, year)
     loop
-        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
+        select course.id, course.name into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
         raise INFO '% · % · %', course_info.id, course_info.name, offering_row.grade;
     end loop;
 
@@ -326,7 +326,7 @@ begin
     raise INFO '+-------------------+';
     for offering_row in execute format('select t.offering_id from %I t, offering o where t.offering_id=o.id and o.sem_offered=%L and o.year_offered=%L', 'withdraw_'||entry_number, sem, year)
     loop
-        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
+        select course.id, course.name into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
         raise INFO '% · % · %', course_info.id, course_info.name, offering_row.grade;
     end loop;
 

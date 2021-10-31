@@ -362,7 +362,7 @@ begin
     end if;
 
     if (not satisfies_offering_constraints) then
-        raise NOTICE 'Student does not satisfy CGPA constraint';
+        raise NOTICE 'Student does not satisfy offering constraint';
     end if;
 
     if (not satisfies_credit_constraints) then
@@ -437,7 +437,7 @@ begin
     end if;
 
     if (not satisfies_offering_constraints) then
-        raise NOTICE 'Student does not satisfy CGPA constraint';
+        raise NOTICE 'Student does not satisfy offering constraint';
     end if;
 
     if (not satisfies_prereq) then
