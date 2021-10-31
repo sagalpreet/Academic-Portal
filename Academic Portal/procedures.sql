@@ -91,7 +91,7 @@ end;
 $$;
 ---------------------------------------------
 
-create or replace procedure add_offering(course_id char(5), slot_id int, constraints varchar(2048))
+create or replace procedure add_offering(course_id char(5), slot_id int)
 language plpgsql
 as $$
 declare
@@ -99,7 +99,6 @@ declare
     current_sem int;
     current_year int;
     offering_id int;
-    constr_table_name varchar(100);
 begin
     inst_id = get_id();
     current_sem = get_current_sem();
@@ -124,14 +123,14 @@ $$;
 
 ---------------------------------------------
 
-create or replace procedure start_add(current_year int, current_sem int)
+create or replace procedure start_add(curr_sem int, curr_year int)
 language plpgsql
 as $$
 begin
     update registration_status
     set add_open=true,
-    	current_sem=current_sem,
-    	current_year=current_year;
+    	current_sem=curr_sem,
+    	current_year=curr_year;
 end;
 $$;
 

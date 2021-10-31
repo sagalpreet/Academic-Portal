@@ -31,12 +31,14 @@ begin
         create trigger %I
         after update on %I
         for each row
-        execute function %I;
+        execute function %I();
     $credit_grade_update_func$,
     
-    'credit_grade_update_func_'||NEW.id, NEW.id,
-    'update %I set grade=%L where offering_id=%L', $_$'credit_'||NEW.entry_number$_$,
-    'credit_grade_update_'||NEW.id, 'credit_grade_update_func_'||NEW.id
+    'credit_grade_update_func_'||NEW.id,
+    'update %I set grade=%L where offering_id=%L', $_$'credit_'||NEW.entry_number$_$, NEW.id,
+    'credit_grade_update_'||NEW.id,
+    'credit_'||NEW.id,
+    'credit_grade_update_func_'||NEW.id
     );
 
     execute format(
@@ -54,12 +56,15 @@ begin
         create trigger %I
         after update on %I
         for each row
-        execute function %I;
+        execute function %I();
     $audit_grade_update_func$,
     
     'audit_grade_update_func_'||NEW.id,
-    'update %I set grade=%L where offering_id=%L', $_$'audit_'||NEW.entry_number$_$,
-    NEW.id, 'audit_grade_update_'||NEW.id, 'audit_grade_update_func_'||NEW.id);
+    'update %I set grade=%L where offering_id=%L', $_$'audit_'||NEW.entry_number$_$, NEW.id,
+    'audit_grade_update_'||NEW.id,
+    'audit_'||NEW.id,
+    'audit_grade_update_func_'||NEW.id
+    );
 
     execute format('create table %I (batch_id int primary key, min_gpa numeric(4, 2) check (min_gpa<=10 and min_gpa>=0), foreign key (batch_id) references batch(id))', 'constr_'||NEW.id);
     
@@ -101,6 +106,9 @@ begin
     execute format('grant select, update on table %I to %I', 'drop_'||NEW.id, NEW.inst_id);
     execute format('revoke all on table %I from public', 'withdraw_'||NEW.id);
     execute format('grant select, update on table %I to %I', 'withdraw_'||NEW.id, NEW.inst_id);
+    execute format('revoke all on table %I from public', 'constr_'||NEW.id);
+    execute format('grant select on table %I to public', 'constr_'||NEW.id);
+    execute format('grant select, insert, update on table %I to %I', 'constr_'||NEW.id, NEW.inst_id);
 
     execute format('revoke all on function %I from public', 'constr_update_func_'||NEW.id);
 
@@ -125,6 +133,12 @@ begin
     if (is_slot_conflicting_for_instructor(NEW.inst_id, NEW.slot_id)) then
         raise EXCEPTION 'Cannot offer two offerings in same slot';
     end if;
+    if (not is_add_open()) then
+        raise EXCEPTION 'Add window is closed';
+    end if;
+    if (not (NEW.sem_offered=get_current_sem() and NEW.year_offered=get_current_year())) then
+        raise EXCEPTION 'Illegal offering';
+    end if;
 
     return NEW;
 end;
@@ -147,7 +161,7 @@ declare
     inst_id char(11);
 begin
     entry_number = get_id();
-    if (NEW.i_verdict <> NULL or NEW.b_verdict <> NULL or NEW.d_verdict <> NULL) then
+    if (NEW.i_verdict is not NULL or NEW.b_verdict is not NULL or NEW.d_verdict is not NULL) then
         raise EXCEPTION 'Illegal ticket insertion';
     end if;
     if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
@@ -178,7 +192,8 @@ begin
     execute format('create table %I (id serial primary key, offering_id int, i_verdict boolean, b_verdict boolean, d_verdict boolean, foreign key (offering_id) references offering(id));', 's_ticket_'||NEW.entry_number);
 
     execute format('revoke all on %I, %I, %I, %I, %I from public', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
-    execute format('grant insert on %I, %I, %I, %I, %I to %I', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number, NEW.entry_number);
+    execute format('grant select, insert on %I, %I, %I, %I, %I to %I', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number, NEW.entry_number);
+    execute format('grant select on %I, %I, %I, %I, %I to dean_acad', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
 
     execute format('create trigger %I
     after insert on %I
@@ -195,14 +210,14 @@ begin
             declare
                 entry_number char(11);
             begin
+                entry_number = %L;
+                
                 if not (is_student_eligible_for_credit(entry_number, NEW.offering_id) and is_add_open()) then
                     raise EXCEPTION 'Not eligible to credit this course';
                 end if;
-                if (NEW.grade = NULL) then
+                if (NEW.grade is NULL) then
                     raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
                 end if;
-                
-                entry_number = %L;
                 
                 execute format(%L, %s, entry_number);
                 execute format(%L, %s, NEW.offering_id);
@@ -227,7 +242,7 @@ begin
     'delete from %I where offering_id=%L', $_$'audit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'drop_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'drop_'||entry_number$_$,
-    'insert into %I(entry_number) (%L)', $_$'credit_'||NEW.offering_id$_$,
+    'insert into %I(entry_number) values(%L)', $_$'credit_'||NEW.offering_id$_$,
     'enroll_credit_'||NEW.entry_number,
     'credit_'||NEW.entry_number,
     'enroll_credit_func_'||NEW.entry_number);
@@ -242,14 +257,14 @@ begin
         declare
             entry_number char(11);
         begin
+            entry_number = %L;
+
             if not (is_student_eligible_for_audit(entry_number, NEW.offering_id) and is_add_open()) then
-                raise EXCEPTION 'Not eligible to credit this course';
+                raise EXCEPTION 'Not eligible to audit this course';
             end if;
-            if (NEW.grade = NULL) then
+            if (NEW.grade is NULL) then
                 raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
             end if;
-            
-            entry_number = %L;
             
             execute format(%L, %s, entry_number);
             execute format(%L, %s, NEW.offering_id);
@@ -273,7 +288,7 @@ begin
     'delete from %I where offering_id=%L', $_$'credit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'drop_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'drop_'||entry_number$_$,
-    'insert into %I(entry_number) (%L)', $_$'audit_'||NEW.offering_id$_$,
+    'insert into %I(entry_number) values(%L)', $_$'audit_'||NEW.offering_id$_$,
     'enroll_audit_'||NEW.entry_number,
     'audit_'||NEW.entry_number,
     'enroll_audit_func_'||NEW.entry_number);
@@ -289,6 +304,8 @@ begin
                 entry_number char(11);
                 has_taken_course int;
             begin
+                entry_number = %L;
+
                 if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
                     raise EXCEPTION 'Offering is from previous semester and year';
                 end if;
@@ -296,8 +313,6 @@ begin
                     raise EXCEPTION 'Drop window is not open';
                 end if;
                 
-                entry_number = %L;
-
                 execute format(%L, %s, %s) into has_taken_course;
 
                 if (has_taken_course=0) then
@@ -322,12 +337,12 @@ begin
     $drop_trigger_func$,
     'enroll_drop_func_'||NEW.entry_number,
     NEW.entry_number,
-    ' select count(*) from (%I union %I) as x where x.offering_id = NEW.offering_id ', $_$'credit_'||NEW.offering_id$_$, $_$'audit_'||NEW.offering_id$_$,
+    'select count(*) from ((select offering_id from %I) union (select offering_id from %I)) as x where x.offering_id = NEW.offering_id ', $_$'credit_'||NEW.offering_id$_$, $_$'audit_'||NEW.offering_id$_$,
     'delete from %I where entry_number=%L', $_$'credit_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'credit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'audit_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'audit_'||entry_number$_$,
-    'insert into %I(entry_number) (%L)', $_$'drop_'||NEW.offering_id$_$,
+    'insert into %I(entry_number) values(%L)', $_$'drop_'||NEW.offering_id$_$,
     'enroll_drop_'||NEW.entry_number,
     'drop_'||NEW.entry_number,
     'enroll_drop_func_'||NEW.entry_number);
@@ -344,6 +359,8 @@ begin
             entry_number char(11);
             has_taken_course int;
         begin
+            entry_number = %L;
+
             if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
                 raise EXCEPTION 'Offering is from previous semester and year';
             end if;
@@ -351,8 +368,6 @@ begin
                 raise EXCEPTION 'Withdraw window is not open';
             end if;
             
-            entry_number = %L;
-
             execute format(%L, %s, %s) into has_taken_course;
 
             if (has_taken_course=0) then
@@ -379,19 +394,20 @@ begin
     $withdraw_trigger_func$,
     'enroll_withdraw_func_'||NEW.entry_number,
     NEW.entry_number,
-    'select count(*) from (%I union %I) as x where x.offering_id = NEW.offering_id', $_$'credit_'||NEW.offering_id$_$, $_$'audit_'||NEW.offering_id$_$,
+    'select count(*) from ((select offering_id from %I) union (select offering_id from %I)) as x where x.offering_id = NEW.offering_id ', $_$'credit_'||NEW.offering_id$_$, $_$'audit_'||NEW.offering_id$_$,
     'delete from %I where entry_number=%L', $_$'credit_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'credit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'audit_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'audit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'drop_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'drop_'||entry_number$_$,
-    'insert into %I(entry_number) (%L)', $_$'withdraw_'||NEW.offering_id$_$,
+    'insert into %I(entry_number) values(%L)', $_$'withdraw_'||NEW.offering_id$_$,
     'enroll_withdraw_'||NEW.entry_number,
     'withdraw_'||NEW.entry_number,
     'enroll_withdraw_func_'||NEW.entry_number);
 
     execute format('revoke all on function %I, %I, %I, %I from public', 'enroll_credit_func_'||NEW.entry_number, 'enroll_audit_func_'||NEW.entry_number, 'enroll_drop_func_'||NEW.entry_number, 'enroll_withdraw_func_'||NEW.entry_number);
+    execute format('grant usage on sequence %I to %I', 's_ticket_'||NEW.entry_number||'_id_seq', NEW.entry_number);
 
     return NEW;
 end;
@@ -429,7 +445,7 @@ begin
             declare
                 advisor_id char(11);
             begin
-                if (OLD.verdict <> NULL) then
+                if (OLD.verdict is not NULL) then
                     raise EXCEPTION 'Verdict already given';
                 end if;
                 advisor_id = (select advisor.id from student, advisor where student.batch_id=advisor.batch_id and student.entry_number=OLD.entry_number);
@@ -488,7 +504,7 @@ begin
         as $trigger_func$
         declare
         begin
-            if (OLD.verdict <> NULL) then
+            if (OLD.verdict is not NULL) then
                 raise EXCEPTION 'Verdict already given';
             end if;
 
@@ -534,7 +550,7 @@ as $$
 declare
     offering_id int;
 begin
-    if (OLD.verdict <> NULL) then
+    if (OLD.verdict is not NULL) then
         raise EXCEPTION 'Verdict already given';
     end if;
 

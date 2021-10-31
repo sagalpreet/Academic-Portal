@@ -43,8 +43,8 @@ insert into instructor values
 
 insert into advisor values
 ('2015csp0001', 1),
-('2015csp0001', 2),
+('2015csp0002', 2),
 ('2010eep0003', 3),
-('2015eep0010', 4),
+('2016eep0010', 4),
 ('2014mep0001', 5),
 ('2017mep0020', 6);
