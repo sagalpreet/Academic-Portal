@@ -25,6 +25,7 @@ begin
         as $func_body$
         begin
           execute format(%L, %s, NEW.grade, %L);
+          return NEW;
         end;
         $func_body$;
 
@@ -50,6 +51,7 @@ begin
         as $func_body$
         begin
           execute format(%L, %s, NEW.grade, %L);
+          return NEW;
         end;
         $func_body$;
 
@@ -151,31 +153,6 @@ execute function add_offering_security_check();
 
 ---------------------------------------------------------
 
-create or replace function add_s_ticket_trigger_function()
-returns trigger
-language plpgsql
-security definer
-as $$
-declare
-    entry_number char(11);
-    inst_id char(11);
-begin
-    entry_number = get_id();
-    if (NEW.i_verdict is not NULL or NEW.b_verdict is not NULL or NEW.d_verdict is not NULL) then
-        raise EXCEPTION 'Illegal ticket insertion';
-    end if;
-    if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
-        raise EXCEPTION 'Offering unavailable for this semester';
-    end if;
-
-    select instructor.id into inst_id
-    from offering, instructor
-    where offering.inst_id = instructor.id and offering.id=NEW.offering_id;
-
-    execute format('insert into %I(id, entry_number) values(%L, %L)', 'i_ticket_'||inst_id, NEW.id, entry_number);
-end;
-$$;
-
 create or replace function add_student_trigger_function()
 returns trigger
 language plpgsql
@@ -195,10 +172,46 @@ begin
     execute format('grant select, insert on %I, %I, %I, %I, %I to %I', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number, NEW.entry_number);
     execute format('grant select on %I, %I, %I, %I, %I to dean_acad', 'credit_'||NEW.entry_number, 'audit_'||NEW.entry_number, 'drop_'||NEW.entry_number, 'withdraw_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
 
-    execute format('create trigger %I
-    after insert on %I
-    for each row
-    execute function add_s_ticket_trigger_function()', 'add_s_ticket_'||NEW.entry_number, 's_ticket_'||NEW.entry_number);
+    execute format($add_s_ticket_trigger_func$
+        create or replace function %I()
+        returns trigger
+        language plpgsql
+        security definer
+        as $add_s_ticket_trigger_func_body$
+        declare
+            entry_number char(11);
+            inst_id char(11);
+        begin
+            entry_number = %L;
+            if (NEW.i_verdict is not NULL or NEW.b_verdict is not NULL or NEW.d_verdict is not NULL) then
+                raise EXCEPTION 'Illegal ticket insertion';
+            end if;
+            if (not is_offering_offered_in_current_sem_and_year(NEW.offering_id)) then
+                raise EXCEPTION 'Offering unavailable for this semester';
+            end if;
+
+            select instructor.id into inst_id
+            from offering, instructor
+            where offering.inst_id = instructor.id and offering.id=NEW.offering_id;
+
+            execute format(%L, %s, NEW.id, entry_number);
+            return NEW;
+        end;
+        $add_s_ticket_trigger_func_body$;
+
+        create trigger %I
+        after insert on %I
+        for each row
+        execute function %I()
+    $add_s_ticket_trigger_func$,
+
+    'add_s_ticket_trigger_func'||NEW.entry_number,
+    NEW.entry_number,
+    'insert into %I(id, entry_number) values(%L, %L)', $_$'i_ticket_'||inst_id$_$,
+    'add_s_ticket_trigger_'||NEW.entry_number,
+    's_ticket_'||NEW.entry_number,
+    'add_s_ticket_trigger_func'||NEW.entry_number
+    );
     
     execute format(
         $enroll_credit_trigger_func$
@@ -215,7 +228,7 @@ begin
                 if not (is_student_eligible_for_credit(entry_number, NEW.offering_id) and is_add_open()) then
                     raise EXCEPTION 'Not eligible to credit this course';
                 end if;
-                if (NEW.grade is NULL) then
+                if (NEW.grade is NOT NULL) then
                     raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
                 end if;
                 
@@ -262,7 +275,7 @@ begin
             if not (is_student_eligible_for_audit(entry_number, NEW.offering_id) and is_add_open()) then
                 raise EXCEPTION 'Not eligible to audit this course';
             end if;
-            if (NEW.grade is NULL) then
+            if (NEW.grade is not NULL) then
                 raise EXCEPTION 'Illegal operation (grade cannot be added on insert)';
             end if;
             
@@ -313,7 +326,7 @@ begin
                     raise EXCEPTION 'Drop window is not open';
                 end if;
                 
-                execute format(%L, %s, %s) into has_taken_course;
+                execute format(%L, %s, %s, %s) into has_taken_course;
 
                 if (has_taken_course=0) then
                     raise EXCEPTION 'Course has not been added';
@@ -337,7 +350,7 @@ begin
     $drop_trigger_func$,
     'enroll_drop_func_'||NEW.entry_number,
     NEW.entry_number,
-    'select count(*) from ((select offering_id from %I) union (select offering_id from %I)) as x where x.offering_id = NEW.offering_id ', $_$'credit_'||NEW.offering_id$_$, $_$'audit_'||NEW.offering_id$_$,
+    'select count(*) from ((select offering_id from %I) union (select offering_id from %I)) as x where x.offering_id = %s', $_$'credit_'||entry_number$_$, $_$'audit_'||entry_number$_$, $_$NEW.offering_id$_$,
     'delete from %I where entry_number=%L', $_$'credit_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'credit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'audit_'||NEW.offering_id$_$,
@@ -368,7 +381,7 @@ begin
                 raise EXCEPTION 'Withdraw window is not open';
             end if;
             
-            execute format(%L, %s, %s) into has_taken_course;
+            execute format(%L, %s, %s, %s) into has_taken_course;
 
             if (has_taken_course=0) then
                 raise EXCEPTION 'Course has not been added';
@@ -394,7 +407,7 @@ begin
     $withdraw_trigger_func$,
     'enroll_withdraw_func_'||NEW.entry_number,
     NEW.entry_number,
-    'select count(*) from ((select offering_id from %I) union (select offering_id from %I)) as x where x.offering_id = NEW.offering_id ', $_$'credit_'||NEW.offering_id$_$, $_$'audit_'||NEW.offering_id$_$,
+    'select count(*) from ((select offering_id from %I) union (select offering_id from %I)) as x where x.offering_id = %s', $_$'credit_'||entry_number$_$, $_$'audit_'||entry_number$_$, $_$NEW.offering_id$_$,
     'delete from %I where entry_number=%L', $_$'credit_'||NEW.offering_id$_$,
     'delete from %I where offering_id=%L', $_$'credit_'||entry_number$_$,
     'delete from %I where entry_number=%L', $_$'audit_'||NEW.offering_id$_$,
@@ -425,7 +438,6 @@ returns trigger
 language plpgsql
 security definer
 as $$
-declare
 begin
     execute format('create role %I with login password %L', NEW.id, 'iitrpr');
     execute format('grant instructor to %I', NEW.id);
@@ -448,10 +460,10 @@ begin
                 if (OLD.verdict is not NULL) then
                     raise EXCEPTION 'Verdict already given';
                 end if;
-                advisor_id = (select advisor.id from student, advisor where student.batch_id=advisor.batch_id and student.entry_number=OLD.entry_number);
+                advisor_id = (select advisor.inst_id from student, advisor where student.batch_id=advisor.batch_id and student.entry_number=OLD.entry_number);
 
-                execute format(%L, %s, OLD.ticket_id, OLD.entry_number);
-                execute format(%L, %s, NEW.verdict, OLD.ticked_id);
+                execute format(%L, %s, OLD.id, OLD.entry_number);
+                execute format(%L, %s, NEW.verdict, OLD.id);
 
                 return NEW;
             end;
@@ -464,8 +476,8 @@ begin
     $i_ticket_verdict_trigger_func$,
 
     'i_ticket_verdict_func_'||NEW.id,
-    'insert into %I(id, entry_number) values (%L, %L, %L)', $_$'b_ticket_'||advisor_id$_$,
-    'update %I set i_verdit=%L where id=%L', $_$'s_ticket_'||OLD.entry_number$_$,
+    'insert into %I(id, entry_number) values (%L, %L)', $_$'b_ticket_'||advisor_id$_$,
+    'update %I set i_verdict=%L where id=%L', $_$'s_ticket_'||OLD.entry_number$_$,
     'i_ticket_verdict_'||NEW.id,
     'i_ticket_'||NEW.id,
     'i_ticket_verdict_func_'||NEW.id);
@@ -508,8 +520,8 @@ begin
                 raise EXCEPTION 'Verdict already given';
             end if;
 
-            execute format(%L, %s, OLD.ticket_id, OLD.entry_number);
-            execute format(%L, %s, NEW.verdict, OLD.ticked_id);
+            execute format(%L, %s, OLD.id, OLD.entry_number);
+            execute format(%L, %s, NEW.verdict, OLD.id);
 
             return NEW;
         end;
@@ -522,8 +534,8 @@ begin
     $b_ticket_verdict_trigger_func$,
     
     'b_ticket_verdict_func_'||NEW.inst_id,
-    'insert into %I(id, entry_number) values (%L, %L, %L)', $_$'d_ticket_'||advisor_id$_$,
-    'update %I set i_verdit=%L where id=%L', $_$'s_ticket_'||OLD.entry_number$_$,
+    'insert into %I(id, entry_number) values (%L, %L)', $_$'d_ticket'$_$,
+    'update %I set b_verdict=%L where id=%L', $_$'s_ticket_'||OLD.entry_number$_$,
     'b_ticket_verdict_'||NEW.inst_id,
     'b_ticket_'||NEW.inst_id,
     'b_ticket_verdict_func_'||NEW.inst_id
@@ -554,10 +566,10 @@ begin
         raise EXCEPTION 'Verdict already given';
     end if;
 
-    execute format('update %I set d_verdit=%L where id=%L', 's_ticket_'||OLD.entry_number, NEW.verdict, OLD.ticked_id);
+    execute format('update %I set d_verdict=%L where id=%L', 's_ticket_'||OLD.entry_number, NEW.verdict, OLD.id);
 
     if (NEW.verdict=true) then
-        execute format('select offering_id from %I where id=%L', 's_ticket_'||NEW.entry_number, NEW.ticket_id) into offering_id;
+        execute format('select offering_id from %I where id=%L', 's_ticket_'||NEW.entry_number, NEW.id) into offering_id;
         raise NOTICE 'Student % can now enroll in offering (id: %)', NEW.entry_number, offering_id;
     end if;
 

@@ -9,7 +9,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    execute format('insert into %I(offering_id) (%L)', 'credit_'||entry_number, offering_id);
+    execute format('insert into %I(offering_id) values(%L)', 'credit_'||entry_number, offering_id);
 end;
 $$;
 
@@ -20,7 +20,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    execute format('insert into %I(offering_id) (%L)', 'audit_'||entry_number, offering_id);
+    execute format('insert into %I(offering_id) values(%L)', 'audit_'||entry_number, offering_id);
 end;
 $$;
 
@@ -31,7 +31,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    execute format('insert into %I(offering_id) (%L)', 'drop_'||entry_number, offering_id);
+    execute format('insert into %I(offering_id) values(%L)', 'drop_'||entry_number, offering_id);
 end;
 $$;
 
@@ -42,7 +42,7 @@ declare
     entry_number char(11);
 begin
     entry_number = get_id();
-    execute format('insert into %I(offering_id) (%L)', 'withdraw_'||entry_number, offering_id);
+    execute format('insert into %I(offering_id) values(%L)', 'withdraw_'||entry_number, offering_id);
 end;
 $$;
 
@@ -55,7 +55,7 @@ declare
 begin
     entry_number = get_id();
 
-    execute format('insert into %I(offering_id) values (%L, %L)', 's_ticket_'||entry_number, offering_id);
+    execute format('insert into %I(offering_id) values (%L)', 's_ticket_'||entry_number, offering_id);
 end;
 $$;
 
@@ -66,27 +66,27 @@ declare
     inst_id char(11);
 begin
     inst_id = get_id();
-    execute format('update %I set verdit=%L where id=%L and entry_number=%L', 'i_ticket_'||inst_id, verdict, ticket_id, entry_number);
+    execute format('update %I set verdict=%L where id=%L and entry_number=%L', 'i_ticket_'||inst_id, verdict, ticket_id, entry_number);
 end;
 $$;
 
-create or replace procedure ticket_verdict_b(ticket_id int, entry_number char(11), verdit boolean)
+create or replace procedure ticket_verdict_b(ticket_id int, entry_number char(11), verdict boolean)
 language plpgsql
 as $$
 declare
     advisor_id char(11);
 begin
     advisor_id = get_id();
-    execute format('update %I set verdit=%L where id=%L and entry_number=%L', 'b_ticket_'||advisor_id, verdict, ticket_id, entry_number);
+    execute format('update %I set verdict=%L where id=%L and entry_number=%L', 'b_ticket_'||advisor_id, verdict, ticket_id, entry_number);
 end;
 $$;
 
-create or replace procedure ticket_verdict_d(ticket_id int, verdict boolean)
+create or replace procedure ticket_verdict_d(ticket_id int, entry_number char(11), verdict boolean)
 language plpgsql
 as $$
 declare
 begin
-    execute format('update %I set verdit=%L where id=%L and entry_number=%L', 'd_ticket', verdict, ticket_id, entry_number);
+    execute format('update %I set verdict=%L where id=%L and entry_number=%L', 'd_ticket', verdict, ticket_id, entry_number);
 end;
 $$;
 ---------------------------------------------
@@ -110,7 +110,7 @@ begin
 end;
 $$;
 
-create or replace procedure add_constraints(offering_id char(5), batch_id int, min_gpa numeric(4, 2))
+create or replace procedure add_constraints(offering_id int, batch_id int, min_gpa numeric(4, 2))
 language plpgsql
 as $$
 declare
@@ -167,12 +167,13 @@ create or replace procedure update_credit_grades(filepath varchar(2048), offerin
 language plpgsql
 as $$
 declare
-    table_name char(50);
-    temp_table_name char(50);
+    table_name varchar(50);
+    temp_table_name varchar(50);
     no_extra_student boolean;
     some_students_left boolean;
+    i record;
 begin
-    if (not is_offering_offered_in_current_sem_and_year(get_current_sem(), get_current_year())) then
+    if (not is_offering_offered_in_current_sem_and_year(offering_id)) then
         raise EXCEPTION 'Offering has been completed';
     end if;
     
@@ -183,32 +184,35 @@ begin
     execute format('copy %I from %L with (format csv)', temp_table_name, filepath);
 
 	execute format('
-        not exists
+    select
         (
-            (select entry_number from %I)
-            except
-            (select entry_number from %I)
+            not exists
+            (
+                (select entry_number from %I)
+                except
+                (select entry_number from %I)
+            )
         )
     ', temp_table_name, table_name) into no_extra_student;
-    if (no_extra_student) then
+    if (not no_extra_student) then
         execute format('drop table %I', temp_table_name);
         raise EXCEPTION 'Some students in CSV have not credited this course';
         return;
     end if;
 
-    execute format('
-        update %I as t
-        set t.grade=x.grade
-        from %I as x
-        where t.entry_number=x.entry_number
-    ', table_name, temp_table_name);
+    for i in execute format('select * from %I', temp_table_name)
+    loop
+        execute format('update %I set grade=%L where entry_number=%L', table_name, i.grade, i.entry_number);
+    end loop;
 
 	execute format('
-        exists
-        (
-            select *
-            from %I as t
-            where t.grade=null
+        select(
+            exists
+            (
+                select *
+                from %I as t
+                where t.grade=null
+            )
         )
     ', table_name) into some_students_left;
 
@@ -224,12 +228,13 @@ create or replace procedure update_audit_grades(filepath varchar(2048), offering
 language plpgsql
 as $$
 declare
-    table_name char(50);
-    temp_table_name char(50);
+    table_name varchar(50);
+    temp_table_name varchar(50);
     no_extra_student boolean;
     some_students_left boolean;
+    i record;
 begin
-    if (not is_offering_offered_in_current_sem_and_year(get_current_sem(), get_current_year())) then
+    if (not is_offering_offered_in_current_sem_and_year(offering_id)) then
         raise EXCEPTION 'Offering has been completed';
     end if;
 
@@ -239,34 +244,36 @@ begin
     execute format('revoke all on %I from public', temp_table_name);
     execute format('copy %I from %L with (format csv)', temp_table_name, filepath);
     execute format('revoke all on %I from public', temp_table_name);
-    execute format('grant all on %I to owner', temp_table_name);
     execute format('
-        not exists
+    select
         (
-            (select entry_number from %I)
-            except
-            (select entry_number from %I)
+            not exists
+            (
+                (select entry_number from %I)
+                except
+                (select entry_number from %I)
+            )
         )
     ', temp_table_name, table_name) into no_extra_student;
-    if (no_extra_student) then
+    if (not no_extra_student) then
         execute format('drop table %I', temp_table_name);
         raise WARNING 'Some students in CSV have not audited this course';
         return;
     end if;
 
-    execute format('
-        update %I as t
-        set t.grade=x.grade
-        from %I as x
-        where t.entry_number=x.entry_number
-    ', table_name, temp_table_name);
+    for i in execute format('select * from %I', temp_table_name)
+    loop
+        execute format('update %I set grade=%L where entry_number=%L', table_name, i.grade, i.entry_number);
+    end loop;
 
 	execute format('
-        exists
-        (
-            select *
-            from %I as t
-            where t.grade=null
+        select (
+            exists
+            (
+                select *
+                from %I as t
+                where t.grade=null
+            )
         )
     ', table_name) into some_students_left;
 
@@ -285,33 +292,45 @@ as $$
 declare
     offering_row record;
     course_info record;
+    name varchar(50);
 begin
+    execute format('select name from student where student.entry_number=%L', entry_number) into name;
     raise INFO 'Entry number: %', entry_number;
-    raise INFO 'Name: %', (select name from student where entry_number=entry_number);
+    raise INFO 'Name: %', name;
     raise INFO 'Year: %', year;
     raise INFO 'Semester: %', sem;
 
-    raise INFO 'Courses Credited';
-    for offering_row in execute format('select (offering_id, grade) from %I where sem_offered=%L and year_offered=%L', 'credit_'||entry_number, sem, year)
+    raise INFO '';
+    raise INFO '+------------------+';
+    raise INFO '| Courses Credited |';
+    raise INFO '+------------------+';
+    for offering_row in execute format('select t.offering_id, t.grade from %I t, offering o where t.offering_id=o.id and o.sem_offered=%L and o.year_offered=%L', 'credit_'||entry_number, sem, year)
     loop
-        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_id;
-        raise INFO '% % %', course_info.id, course_info.name, offering_row.grade;
+        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
+        raise INFO '% · % · %', course_info.id, course_info.name, offering_row.grade;
     end loop;
 
-    raise INFO 'Courses Audited';
-    for offering_row in execute format('select (offering_id, grade) from %I where sem_offered=%L and year_offered=%L', 'audit_'||entry_number, sem, year)
+    raise INFO '';
+    raise INFO '+-----------------+';
+    raise INFO '| Courses Audited |';
+    raise INFO '+-----------------+';
+    for offering_row in execute format('select t.offering_id, t.grade from %I t, offering o where t.offering_id=o.id and o.sem_offered=%L and o.year_offered=%L', 'audit_'||entry_number, sem, year)
     loop
-        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_id;
-        raise INFO '% % %', course_info.id, course_info.name, offering_row.grade;
+        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
+        raise INFO '% · % · %', course_info.id, course_info.name, offering_row.grade;
     end loop;
 
-    raise INFO 'Courses Withdrawn';
-    for offering_row in execute format('select (offering_id) from %I where sem_offered=%L and year_offered=%L', 'withdraw_'||entry_number, sem, year)
+    raise INFO '';
+    raise INFO '+-------------------+';
+    raise INFO '| Courses Withdrawn |';
+    raise INFO '+-------------------+';
+    for offering_row in execute format('select t.offering_id from %I t, offering o where t.offering_id=o.id and o.sem_offered=%L and o.year_offered=%L', 'withdraw_'||entry_number, sem, year)
     loop
-        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_id;
-        raise INFO '% % %', course_info.id, course_info.name, 'W';
+        select * into course_info from offering, course where offering.course_id=course.id and offering.id=offering_row.offering_id;
+        raise INFO '% · % · %', course_info.id, course_info.name, offering_row.grade;
     end loop;
 
+    raise INFO '';
     raise INFO 'SGPA: %', get_sgpa(entry_number, sem, year);
     raise INFO 'CGPA: %', get_cgpa(entry_number, sem, year);
 end;

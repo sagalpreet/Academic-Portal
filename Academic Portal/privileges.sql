@@ -46,19 +46,17 @@ grant execute on procedure update_audit_grades to instructor;
 grant execute on procedure generate_transcript to dean_acad;
 
 -- HELPER FUNCTIONS
-
-grant execute on function get_id to student, instructor, advisor, dean_acad;
+grant execute on function get_id, grade_to_number to student, instructor, advisor, dean_acad;
 grant execute on function get_current_sem, get_current_year to student, instructor, advisor, dean_acad;
 grant execute on function is_offering_offered_in_current_sem_and_year to student, instructor, advisor, dean_acad;
 grant execute on function is_add_open, is_withdraw_open to student, instructor, advisor, dean_acad;
 
 grant execute on function is_slot_conflicting_for_instructor to instructor;
-grant execute on function get_cgpa, get_sgpa to dean_acad;
+grant execute on function get_cgpa, get_sgpa to dean_acad, student;
 
 -- TRIGGER FUNCTIONS
 
 revoke all on function add_offering_trigger_function from public;
-revoke all on function add_s_ticket_trigger_function from public;
 revoke all on function add_student_trigger_function from public;
 revoke all on function add_instructor_trigger_function from public;
 revoke all on function add_advisor_trigger_function from public;

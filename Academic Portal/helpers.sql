@@ -48,7 +48,7 @@ begin
             )
         ) x (n, d)'
         , table_name, year, year, sem) into cgpa;
-    return cpga;
+    return cgpa;
 end;
 $$;
 
@@ -149,7 +149,8 @@ begin
         from (
             select course.c * grade_to_number(t.grade), course.c
             from %I as t, offering, course
-            where offering.id = t.offering_id and course.id = offering.course_id
+            where offering.id = t.offering_id and course.id = offering.course_id and
+            (offering.sem_offered<>get_current_sem() or offering.year_offered<>get_current_year())
         ) x (n, d)'
         , table_name) into gpa;
     return gpa;
@@ -206,14 +207,15 @@ begin
         (select slot_id from offering where id=%L)
         in
         (
-            (select slot_id from offering, %I as t where offering.id=t.offering_id and sem_offered=%L and year_offered=%L)
+            (select slot_id from offering, %I as t where offering.id=t.offering_id and sem_offered=%L and year_offered=%L and offering.id<>%L)
             union
-            (select slot_id from offering, %I as t where offering.id=t.offering_id and sem_offered=%L and year_offered=%L)
+            (select slot_id from offering, %I as t where offering.id=t.offering_id and sem_offered=%L and year_offered=%L and offering.id<>%L)
         )
     )$condition_str$,
     offering_id,
-    'credit_'||entry_number, current_sem, current_year,
-    'audit_'||entry_number, current_sem, current_year) into is_conflicting;
+    'credit_'||entry_number, current_sem, current_year, offering_id,
+    'audit_'||entry_number, current_sem, current_year, offering_id
+    ) into is_conflicting;
     return is_conflicting;
 end;
 $$;
@@ -235,9 +237,9 @@ begin
             (select prereq.prereq_id from prereq where prereq.course_id=%L)
             except
             (
-                (select offering.course_id from %I as t, offering where t.offering_id=offering.id and t.grade not in ('F', 'E'))
+                (select offering.course_id from %I as t, offering where t.offering_id=offering.id and t.grade not in ('F', 'E') and (offering.sem_offered<>get_current_sem() or offering.year_offered<>get_current_year()) )
                 union
-                (select offering.course_id from %I as t, offering where t.offering_id=offering.id and t.grade not in ('NF'))
+                (select offering.course_id from %I as t, offering where t.offering_id=offering.id and t.grade not in ('NF') and (offering.sem_offered<>get_current_sem() or offering.year_offered<>get_current_year()))
             )
         ) x
     $condition_str$, course_id, 'credit_'||entry_number, 'audit_'||entry_number) into satisfies;
@@ -260,6 +262,7 @@ declare
     current_year int;
     current_sem int;
     total_sems int;
+    gpa numeric(4, 2);
 begin
     current_year = get_current_year();
     current_sem = get_current_sem();
@@ -272,15 +275,21 @@ begin
         return false;
     end if;
 
+    gpa = get_gpa(entry_number);
+
+    if (gpa is null) then
+        gpa = 10;
+    end if;
+
     execute format('(select (
-        select constr.min_gpa<=get_gpa(%L)
+        select constr.min_gpa<=%L
         from %I constr, student
         where constr.batch_id=student.batch_id
         and student.entry_number=%L
-    ) )', entry_number, 'constr_'||offering_id, entry_number) into satisfies_offering_constraints;
+    ) )', gpa, 'constr_'||offering_id, entry_number) into satisfies_offering_constraints;
 
     if (satisfies_offering_constraints is NULL) then
-        satisfies_offering_constraints = true;
+        satisfies_offering_constraints = false;
     end if;
 
     select 'credit_'||entry_number into table_name;
@@ -296,6 +305,7 @@ begin
             or
             (offering.year_offered=(get_current_year()-1))
         )
+        and t.grade is not null
     ) x', table_name)
     into total_sems;
 
@@ -334,6 +344,13 @@ begin
     select (this_sem_credits)<(1.25*avg_credit) into satisfies_credit_constraints;
 
     execute format('select (true in (select d_verdict from %I where offering_id=%L))', 's_ticket_'||entry_number, offering_id) into is_dean_approved;
+
+    if (is_dean_approved is null) then
+        is_dean_approved = false;
+    end if;
+
+    raise INFO 'gpa: %, %, %, %', gpa, satisfies_offering_constraints, satisfies_credit_constraints, is_dean_approved; 
+
     return ((satisfies_offering_constraints and satisfies_credit_constraints and does_student_satisfy_prereq(entry_number, offering_id)) or (is_dean_approved));
 end;
 $$;
@@ -349,30 +366,44 @@ declare
     current_year int;
     current_sem int;
     total_sems int;
+    gpa numeric(4, 2);
 begin
     current_year = get_current_year();
     current_sem = get_current_sem();
 
     if (not is_offering_offered_in_current_sem_and_year(offering_id)) then
+        raise INFO 'Offering is not offered this semester';
         return false;
     end if;
 
     if (is_slot_conflicting_for_student(entry_number, offering_id)) then
+        raise INFO 'Slot conflicting...';
         return false;
     end if;
 
+    gpa = get_gpa(entry_number);
+
+    if (gpa is null) then
+        gpa = 10;
+    end if;
+
     execute format('(select (
-        select constr.min_gpa<=get_gpa(%L)
+        select constr.min_gpa<=%L
         from %I constr, student
         where constr.batch_id=student.batch_id
         and student.entry_number=%L
-    ) )', entry_number, 'constr_'||offering_id, entry_number) into satisfies_offering_constraints;
+    ) )', gpa, 'constr_'||offering_id, entry_number) into satisfies_offering_constraints;
 
     if (satisfies_offering_constraints is NULL) then
-        satisfies_offering_constraints = true;
+        satisfies_offering_constraints = false;
     end if;
 
     execute format('select (true in (select d_verdict from %I where offering_id=%L))', 's_ticket_'||entry_number, offering_id) into is_dean_approved;
+
+    if (is_dean_approved is null) then
+        is_dean_approved = false;
+    end if;
+
 
     return ((satisfies_offering_constraints  and does_student_satisfy_prereq(entry_number, offering_id)) or is_dean_approved);
 end;
