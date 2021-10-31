@@ -255,6 +255,8 @@ as $$
 declare
     satisfies_offering_constraints boolean;
     satisfies_credit_constraints boolean;
+    satisfies_prereq boolean;
+    answer boolean;
     is_dean_approved boolean;
     table_name char(18);
     avg_credit numeric(4, 2);
@@ -268,10 +270,12 @@ begin
     current_sem = get_current_sem();
 
     if (not is_offering_offered_in_current_sem_and_year(offering_id)) then
+        raise NOTICE 'Offering is not offered in this semester and year';
         return false;
     end if;
 
     if (is_slot_conflicting_for_student(entry_number, offering_id)) then
+        raise NOTICE 'You cannot take two courses in same slot';
         return false;
     end if;
 
@@ -349,9 +353,27 @@ begin
         is_dean_approved = false;
     end if;
 
-    raise INFO 'gpa: %, %, %, %', gpa, satisfies_offering_constraints, satisfies_credit_constraints, is_dean_approved; 
+    satisfies_prereq = does_student_satisfy_prereq(entry_number, offering_id);
 
-    return ((satisfies_offering_constraints and satisfies_credit_constraints and does_student_satisfy_prereq(entry_number, offering_id)) or (is_dean_approved));
+    answer = ((satisfies_offering_constraints and satisfies_credit_constraints and satisfies_prereq) or (is_dean_approved));
+
+    if (answer) then
+        return true;
+    end if;
+
+    if (not satisfies_offering_constraints) then
+        raise NOTICE 'Student does not satisfy CGPA constraint';
+    end if;
+
+    if (not satisfies_credit_constraints) then
+        raise NOTICE 'Credit limit exceeded';
+    end if;
+
+    if (not satisfies_prereq) then
+        raise NOTICE 'Prerequisites have not been completed';
+    end if;
+
+    return false;
 end;
 $$;
 
@@ -362,6 +384,8 @@ as $$
 declare
     satisfies_offering_constraints boolean;
     is_dean_approved boolean;
+    satisfies_prereq boolean;
+    answer boolean;
     table_name char(18);
     current_year int;
     current_sem int;
@@ -404,7 +428,22 @@ begin
         is_dean_approved = false;
     end if;
 
+    satisfies_prereq = does_student_satisfy_prereq(entry_number, offering_id);
 
-    return ((satisfies_offering_constraints  and does_student_satisfy_prereq(entry_number, offering_id)) or is_dean_approved);
+    answer = ((satisfies_offering_constraints and satisfies_prereq) or (is_dean_approved));
+
+    if (answer) then
+        return true;
+    end if;
+
+    if (not satisfies_offering_constraints) then
+        raise NOTICE 'Student does not satisfy CGPA constraint';
+    end if;
+
+    if (not satisfies_prereq) then
+        raise NOTICE 'Prerequisites have not been completed';
+    end if;
+
+    return false;
 end;
 $$;
