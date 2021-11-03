@@ -335,6 +335,10 @@ begin
         avg_credit=18.5;
     end if;
 
+    if (avg_credit<15) then
+        avg_credit=15;
+    end if;
+
     execute format('select sum(course.c)
         from %I as t, offering, course
         where t.offering_id=offering.id and offering.course_id=course.id and

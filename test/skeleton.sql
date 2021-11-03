@@ -6,4 +6,4 @@ create database project;
 \i 'Academic Portal/helpers.sql'
 \i 'Academic Portal/procedures.sql'
 \i 'Academic Portal/triggers.sql'
-\i 'Academic Portal/privileges.sql
+\i 'Academic Portal/privileges.sql'
