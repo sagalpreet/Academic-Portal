@@ -40,165 +40,165 @@ are essentially instructors. Privileges given to each of the above roles are dis
 ### TABLES
 - **department** (*id*, name)
 - **batch** (*id*, year, dept_id)
--- foreign key (batch_id) references batch(id)
+    * foreign key (batch_id) references batch(id)
 - **course** (*id*, name, l, t, p, s, c, dept_id)
--- foreign key (dept_id) references department(id)
+    * foreign key (dept_id) references department(id)
 - **student** (*entry_number*, name, email, batch_id)
--- foreign key (batch_id) references batch(id)
+    * foreign key (batch_id) references batch(id)
 - **instructor** (*id*, name, email, dept_id)
--- foreign key (dept_id) references department(id)
+    * foreign key (dept_id) references department(id)
 - **advisor** (*inst_id*, *batch_id*)
--- foreign key (inst_id) references instructor(id)
--- foreign key (batch_id) references batch(id)
+    * foreign key (inst_id) references instructor(id)
+    * foreign key (batch_id) references batch(id)
 - **slot** (*id*, duration)
 - **offering** (*id*, course_id, inst_id, sem_offered, year_offered, slot_id))
 - **registration_status** (*id*, add_open, withdraw_open, current_sem, current_year)
--- `Description`: This is a table constrained to contain a single row which contains current semester, current year and whether the add/drop or withdrawal window is open. The id’s data type is boolean and is constrained to be true, effectively limiting the size of this table to 1 row.
+    * `Description`: This is a table constrained to contain a single row which contains current semester, current year and whether the add/drop or withdrawal window is open. The id’s data type is boolean and is constrained to be true, effectively limiting the size of this table to 1 row.
 - **prereq** (*course_id*, *prereq_id*)
--- foreign key (course_id) references course(id)
--- foreign key (prereq_id) references course(id)
--- `Description`: This is a self referential one to many relation from course table to course table. So for tuples { (‘CS301’, ‘CS201’), (‘CS301’, ‘CS204’) }, the interpretation is that CS201 and CS204 are prerequisites for the course ‘CS301’ - credit_<course_id> (*entry_number*, grade)
--- foreign key (entry_number) references student(entry_number)
--- `Description`: Stores the grades for students who credited the
+    * foreign key (course_id) references course(id)
+    * foreign key (prereq_id) references course(id)
+    * `Description`: This is a self referential one to many relation from course table to course table. So for tuples { (‘CS301’, ‘CS201’), (‘CS301’, ‘CS204’) }, the interpretation is that CS201 and CS204 are prerequisites for the course ‘CS301’ - credit_<course_id> (*entry_number*, grade)
+    * foreign key (entry_number) references student(entry_number)
+    * `Description`: Stores the grades for students who credited the
 course <course_id>
 - **audit_<course_id>** (*entry_number*, grade)
--- foreign key (entry_number) references student(entry_number)
--- `Description`: Stores the grades for students who audited the course <course_id>
+    * foreign key (entry_number) references student(entry_number)
+    * `Description`: Stores the grades for students who audited the course <course_id>
 - **drop_<course_id>** (*entry_number*)
--- foreign key (entry_number) references student(entry_number)
--- `Description`: Stores the entry number of students who dropped from the course <course_id>
+    * foreign key (entry_number) references student(entry_number)
+    * `Description`: Stores the entry number of students who dropped from the course <course_id>
 - **withdraw_<course_id>** (*entry_number*)
--- foreign key (entry_number) references student(entry_number)
--- `Description`: Stores the entry number of students who withdrew from the course <course_id>
+    * foreign key (entry_number) references student(entry_number)
+    * `Description`: Stores the entry number of students who withdrew from the course <course_id>
 - **constr_<course_id>** (*batch_id*, min_gpa)
--- foreign key (batch_id) references batch(id)
--- `Description`: Stores the constraints for enrolling in the course. For example, if only the CS’19 (batch_id = 2, say) students with CGPA greater than 8 and EE’18 (batch_id = 11, say) students with CGPA greater than 8.5 are allowed to enroll in the course CS301, then the table constr_CS301 will have 2 tuples { (2, 8), (11, 8.5) }
+    * foreign key (batch_id) references batch(id)
+    * `Description`: Stores the constraints for enrolling in the course. For example, if only the CS’19 (batch_id = 2, say) students with CGPA greater than 8 and EE’18 (batch_id = 11, say) students with CGPA greater than 8.5 are allowed to enroll in the course CS301, then the table constr_CS301 will have 2 tuples { (2, 8), (11, 8.5) }
 - **credit_<entry_number>** (*offering_id*, grade)
--- foreign key (offering_id) references offering(id)
--- `Description`: Stores the grades of the student with entry number <entry_number> in all the courses credited by him/her.
+    * foreign key (offering_id) references offering(id)
+    * `Description`: Stores the grades of the student with entry number <entry_number> in all the courses credited by him/her.
 - **audit_<entry_number>** (*offering_id*, grade)
--- foreign key (offering_id) references offering(id)
--- `Description`: Stores the grades of the student with entry number <entry_number> in all the courses audited by him/her.
+    * foreign key (offering_id) references offering(id)
+    * `Description`: Stores the grades of the student with entry number <entry_number> in all the courses audited by him/her.
 - **drop_<entry_number>** (*offering_id*)
--- foreign key (offering_id) references offering(id)
--- `Description`: Stores the offering id of courses from which the student with entry number <entry_number> dropped.
+    * foreign key (offering_id) references offering(id)
+    * `Description`: Stores the offering id of courses from which the student with entry number <entry_number> dropped.
 - **withdraw_<entry_number>** (*offering_id*)
--- foreign key (offering_id) references offering(id)
--- `Description`: Stores the offering id of courses from which the student with entry number <entry_number> withdrew.
+    * foreign key (offering_id) references offering(id)
+    * `Description`: Stores the offering id of courses from which the student with entry number <entry_number> withdrew.
 - **s_ticket_<entry_number>** (id, offering_id, i_verdict, b_verditct,
 d_verdict)
--- foreign key (offering_id) references offering(id)
--- `Description`: The student can insert into this table to generate a ticket with all verdict values set to null (else EXCEPTION will be raised), procedure for this is explained in further section procedures.
+    * foreign key (offering_id) references offering(id)
+    * `Description`: The student can insert into this table to generate a ticket with all verdict values set to null (else EXCEPTION will be raised), procedure for this is explained in further section procedures.
 - **i_ticket_<inst_id>** (id, entry_number, verdict)
--- foreign key (entry_number) references student(entry_number)
--- `Description`: Instructor can give his feedback by updating the verdict column.
+    * foreign key (entry_number) references student(entry_number)
+    * `Description`: Instructor can give his feedback by updating the verdict column.
 - **b_ticket_<inst_id>** (id, entry_number, verdict)
--- foreign key (entry_number) references student(entry_number)
--- `Description`: Branch advisor can give his feedback by updating the verdict column.
+    * foreign key (entry_number) references student(entry_number)
+    * `Description`: Branch advisor can give his feedback by updating the verdict column.
 #
 ### TRIGGERS
 - **constr_update_<offering_id>**
--- before update on constr_<course_id>
--- check made to ensure that GPA constraint isn’t tightened and a previously eligible-marked batch is not marked ineligible now
+    * before update on constr_<course_id>
+    * check made to ensure that GPA constraint isn’t tightened and a previously eligible-marked batch is not marked ineligible now
 - **add_offering**
--- after insert on offering
--- creates dynamic tables to store record of students who credit, audit, drop from or withdraw from this course
--- additionally, a table that has gpa and batch constraints is also generated dynamically
--- for constraint table, the constr_update_<offering_id> trigger and corresponding trigger function is also generated dynamically
--- for all the procedures and tables generated dynamically, the appropriate privileges to appropriate roles (as mentioned later) are granted.
+    * after insert on offering
+    * creates dynamic tables to store record of students who credit, audit, drop from or withdraw from this course
+    * additionally, a table that has gpa and batch constraints is also generated dynamically
+    * for constraint table, the constr_update_<offering_id> trigger and corresponding trigger function is also generated dynamically
+    * for all the procedures and tables generated dynamically, the appropriate privileges to appropriate roles (as mentioned later) are granted.
 - **add_offering_security_check**
--- before insert on offering
--- to ensure that some other instructor doesn’t insert to the offering table on behalf of an instructor
+    * before insert on offering
+    * to ensure that some other instructor doesn’t insert to the offering table on behalf of an instructor
 - **add_s_ticket_<entry_number>**
--- after insert on s_ticket_<entry_number>
--- check that ticket raised by student is valid (doesn’t directly insert the verdict into the table, it should be null initially and if insertion is successful, the ticket is propagated to corresponding instructor for feedback)
+    * after insert on s_ticket_<entry_number>
+    * check that ticket raised by student is valid (doesn’t directly insert the verdict into the table, it should be null initially and if insertion is successful, the ticket is propagated to corresponding instructor for feedback)
 - **enroll_credit_<entry_number>**
--- before insert on credit_<entry_number>
--- check if the student is eligible for enrolling in that offering i.e passes batch constraint, gpa constraint, the offering being enrolled into is active this semester, 1.25 rule is being followed, add/drop window is open. Even if some constraint is not passed but dean has approved the ticket raised by the student for this offering, he can enroll (add/drop must be open however)
--- if this course is currently audited by the student, it is removed from audit_<entry_number> table and added to credit_<entry_number> table (equivalent to updating audit to credit for this course)
+    * before insert on credit_<entry_number>
+    * check if the student is eligible for enrolling in that offering i.e passes batch constraint, gpa constraint, the offering being enrolled into is active this semester, 1.25 rule is being followed, add/drop window is open. Even if some constraint is not passed but dean has approved the ticket raised by the student for this offering, he can enroll (add/drop must be open however)
+    * if this course is currently audited by the student, it is removed from audit_<entry_number> table and added to credit_<entry_number> table (equivalent to updating audit to credit for this course)
 - **enroll_audit_<entry_number>**
--- before insert on audit_<entry_number>
--- check if the student is eligible for enrolling in that offering i.e passes batch constraint, gpa constraint, the offering being enrolled into is active this semester, add/drop window is open. Even if some constraint is not passed but dean has approved the ticket raised by the student for this offering, he can enroll (add/drop must be open however)
+    * before insert on audit_<entry_number>
+    * check if the student is eligible for enrolling in that offering i.e passes batch constraint, gpa constraint, the offering being enrolled into is active this semester, add/drop window is open. Even if some constraint is not passed but dean has approved the ticket raised by the student for this offering, he can enroll (add/drop must be open however)
 - if this course is currently credited by the student, it is removed from credit_<entry_number> table and added to audit_<entry_number> table (equivalent to updating credit to audit for this course)
 - **enroll_drop_<entry_number>**
--- before insert on drop_<entry_number>
--- if this course is neither in credit_<entry_number> nor in audit_<entry_number>, then exception is raised
--- otherwise, corresponding tuple in one of those tables is removed and added to drop_<entry_number>
+    * before insert on drop_<entry_number>
+    * if this course is neither in credit_<entry_number> nor in audit_<entry_number>, then exception is raised
+    * otherwise, corresponding tuple in one of those tables is removed and added to drop_<entry_number>
 - **enroll_withdraw_<entry_number>○ before insert on withdraw_<entry_number>**
--- if this course is in either audit_<entry_number> or credit_<entry_number>, then it is removed from there and added to enroll_withdraw_<entry_number>
--- ofcourse, this is only allowed if withdraw window is open, else exception is raised
+    * if this course is in either audit_<entry_number> or credit_<entry_number>, then it is removed from there and added to enroll_withdraw_<entry_number>
+    * ofcourse, this is only allowed if withdraw window is open, else exception is raised
 - **add_student**
--- before insert on student
--- role for the student is created (for him/her to login)
--- generates dynamic tables [audit|credit|drop|withdraw|s_ticket]_<entry_number> and gives privileges to different roles on these tables appropriately also dynamically generates triggers mentioned in (4th to 8th) points above
+    * before insert on student
+    * role for the student is created (for him/her to login)
+    * generates dynamic tables [audit|credit|drop|withdraw|s_ticket]_<entry_number> and gives privileges to different roles on these tables appropriately also dynamically generates triggers mentioned in (4th to 8th) points above
 - **i_ticket_verdict_<inst_id>**
--- before update on i_ticket_<inst_id>
--- allows verdict to be given only once, i.e update is allowed only once. (it won’t make sense if instructor could change his verdict after the verdict by advisor or dean is given)
--- ticket is propagated to advisor for feedback (irrespective of instructor’s feedback)
--- update is made to s_ticket_<entry_number> accordingly for the attribute i_verdict
+    * before update on i_ticket_<inst_id>
+    * allows verdict to be given only once, i.e update is allowed only once. (it won’t make sense if instructor could change his verdict after the verdict by advisor or dean is given)
+    * ticket is propagated to advisor for feedback (irrespective of instructor’s feedback)
+    * update is made to s_ticket_<entry_number> accordingly for the attribute i_verdict
 - **add_instructor**
--- after insert on instructor
--- dynamically generates table i_ticket_<inst_id> and grants appropriate access to users on this table
--- trigger #10 is dynamically generated
+    * after insert on instructor
+    * dynamically generates table i_ticket_<inst_id> and grants appropriate access to users on this table
+    * trigger #10 is dynamically generated
 - **b_ticket_verdict_<inst_id>**
--- before update on b_ticket_<inst_id>
--- allows verdict to be given only once, i.e update is allowed only once. (it won’t make sense if advisor could change his verdict after the verdict by dean is given)
--- ticket is propagated to dean for final decision (irrespective of advisor’s feedback)
--- update is made to s_ticket_<entry_number> accordingly for the attribute b_verdict
+    * before update on b_ticket_<inst_id>
+    * allows verdict to be given only once, i.e update is allowed only once. (it won’t make sense if advisor could change his verdict after the verdict by dean is given)
+    * ticket is propagated to dean for final decision (irrespective of advisor’s feedback)
+    * update is made to s_ticket_<entry_number> accordingly for the attribute b_verdict
 - **add_advisor**
--- after insert on advisor
--- dynamically generates table b_ticket_<inst_id> and grants appropriate access to users on this table
--- trigger 12 is dynamically generated
+    * after insert on advisor
+    * dynamically generates table b_ticket_<inst_id> and grants appropriate access to users on this table
+    * trigger 12 is dynamically generated
 - **d_ticket_verdict_<inst_id>**
--- Before update on d_ticket
--- allows verdict to be given only once, i.e update is allowed only once. (it won’t make sense if student enrolled in a course and then dean changes the verdict)
--- update is made to s_ticket_<entry_number> accordingly for the attribute d_verdict and this is the final verdict for the ticket
+    * Before update on d_ticket
+    * allows verdict to be given only once, i.e update is allowed only once. (it won’t make sense if student enrolled in a course and then dean changes the verdict)
+    * update is made to s_ticket_<entry_number> accordingly for the attribute d_verdict and this is the final verdict for the ticket
 #
 ### PROCEDURES & FUNCTIONS (excluding the trigger functions)
 - **enroll_credit(offering_id)**
--- Called by <student_id>
+    * Called by <student_id>
 - **enroll_audit(offering_id)**
--- Called by <student_id>
+    * Called by <student_id>
 - **drop_offering(offering_id)**
--- Called by <student_id>
+    * Called by <student_id>
 - **withdraw_offering(offering_id)**
--- Called by <student_id>
+    * Called by <student_id>
 - **generate_ticket(offering_id)**
--- Called by <student_id>
+    * Called by <student_id>
 - **ticket_verdict_i(ticket_id, entry_number, verdict)**
--- Called by <instructor_id>
--- To give his/her feedback about the ticket. The feedback is updated in the table i_ticket_<inst_id> and propagated to column i_verdict of table s_ticket_<entry_number>
+    * Called by <instructor_id>
+    * To give his/her feedback about the ticket. The feedback is updated in the table i_ticket_<inst_id> and propagated to column i_verdict of table s_ticket_<entry_number>
 - **ticket_verdict_b(ticket_id, entry_number, verdict)**
--- Called by <instructor_id>, who is also an advisor
--- To give his/her feedback about the ticket. The feedback is updated in the table b_ticket_<inst_id> and propagated to column b_verdict of table s_ticket_<entry_number>
+    * Called by <instructor_id>, who is also an advisor
+    * To give his/her feedback about the ticket. The feedback is updated in the table b_ticket_<inst_id> and propagated to column b_verdict of table s_ticket_<entry_number>
 - **ticket_verdict_d(ticket_id, entry_number, verdict)**
--- Called by dean_acad
--- To give the verdict about the ticket. The feedback is updated in the table d_ticket_<inst_id> and propagated to column d_verdict of table s_ticket_<entry_number>
+    * Called by dean_acad
+    * To give the verdict about the ticket. The feedback is updated in the table d_ticket_<inst_id> and propagated to column d_verdict of table s_ticket_<entry_number>
 - **add_offering(course_id, slot_id, constraints)**
--- Called by <instructor_id>
+    * Called by <instructor_id>
 - **add_constraints(offering_id, batch_id, min_gpa)**
--- Called by <instructor_id>
+    * Called by <instructor_id>
 - **start_add(current_year, current_sem)**
--- Called by dean_acad
--- To open the add/drop window
+    * Called by dean_acad
+    * To open the add/drop window
 - **stop_add()**
--- Called by dean_acad
--- To close the add/drop window
+    * Called by dean_acad
+    * To close the add/drop window
 - **start_withdraw()**
--- Called by dean_acad
--- To open the withdraw window
+    * Called by dean_acad
+    * To open the withdraw window
 - **stop_withdraw()**
--- Called by dean_acad
--- To stop the withdraw window
+    * Called by dean_acad
+    * To stop the withdraw window
 - **update_credit_grades(filepath, offering_id)**
--- Called by <instructor_id>
--- To import grades of students who credited the course from a csv located at filepath
+    * Called by <instructor_id>
+    * To import grades of students who credited the course from a csv located at filepath
 - **update_audit_grades(filepath, offering_id)**
--- Called by <instructor_id>
--- To import grades of students who audited the course from a csv located at filepath
+    * Called by <instructor_id>
+    * To import grades of students who audited the course from a csv located at filepath
 - **generate_transcript(entry_number, sem, year)**
-- Called by dean_acad
-- To print the detailed grades, gpa (through raise INFO)
+    * Called by dean_acad
+    * To print the detailed grades, gpa (through raise INFO)
 #
 ### HELPER FUNCTIONS
 1. get_sgpa (entry_number, sem, year)
@@ -221,12 +221,15 @@ d_verdict)
 - audit_grade: enum ('NP', 'NF')
 #
 ### ROLES
+
 *(Whenever not mentioned, the permissions are inherited, otherwise there is no access.)*
+
 ##### Groups (roles without login)
 #
 **1. student**
+
 | Table  | Permissions |
-| ------------- | ------------- |
+| -- | -- |
 | Table | Permissions |
 | department | select |
 | slot | select |
@@ -241,6 +244,7 @@ d_verdict)
 | registration_status | select |
 #
 **2. instructor**
+
 | Table | Permissions |
 | -- | -- |
 | department | select |
@@ -274,7 +278,9 @@ d_verdict)
 ##### Users (roles with login)
 
 **1. <student_id>**
+
 a. Inherits permissions from student group
+
 b. For their own tables (suffixed by <student_id>)
 
 | Table | Permissions |
@@ -287,7 +293,9 @@ b. For their own tables (suffixed by <student_id>)
 
 **2. <instrutor_id>**
 a. Inherits permission from instructor group
+
 b. When <offering_id> is offered by <instructor_id>
+
 | Table | Permissions |
 | -- | -- |
 | i_ticket_<instructor_id> | select, update |
@@ -298,6 +306,7 @@ b. When <offering_id> is offered by <instructor_id>
 | constr_<offering_id> | select, insert, update |
 
 c. When instructor is also an advisor
+
 *Inherit from advisor group*
 
 | Table | Permissions |
@@ -305,7 +314,9 @@ c. When instructor is also an advisor
 | b_ticket_<instructor_id> | select, update |
 #
 **3. dean_acad**
+
 a. Can SELECT all tables
+
 | Table | Permissions |
 | -- | -- |
 | department | all |
